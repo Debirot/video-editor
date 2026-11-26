@@ -5,11 +5,14 @@
  * - preview: envia o projeto (a cada mudança) e o playhead (quando o usuário o move);
  *   recebe o tempo mostrado durante a reprodução e atualiza o viewStore.
  */
-import type { DecodeCheck, FromWorker, PreviewSource, ToWorker } from "@/engine/messages";
+import type { DecodeCheck, FromAudioWorker, FromWorker, PreviewSource, ToAudioWorker, ToWorker } from "@/engine/messages";
 import { isTauri, mediaReadUrl } from "@/lib/ipc";
 import { projectStore } from "@/project/store";
 import type { Project } from "@/project/types";
 import { timeToX } from "@/timeline/viewport";
+import { frameToUs } from "@/lib/time";
+import { projectDuration } from "@/project/queries";
+import { AudioOut } from "./audio";
 import { viewStore } from "./viewStore";
 
 let worker: Worker | null = null;
@@ -24,6 +27,20 @@ function send(msg: ToWorker, transfer: Transferable[] = []): void {
   getWorker().postMessage(msg, transfer);
 }
 
+let audioWorker: Worker | null = null;
+
+function sendAudio(msg: ToAudioWorker): void {
+  if (!audioWorker) {
+    audioWorker = new Worker(new URL("../engine/audioWorker.ts", import.meta.url), { type: "module" });
+    audioWorker.onmessage = (ev: MessageEvent<FromAudioWorker>) => {
+      const m = ev.data;
+      if (m.type === "audio:pcm") audio.receive(m.session, m.to, m.chunks);
+      else errorListeners.forEach((l) => l(m.message));
+    };
+  }
+  audioWorker.postMessage(msg);
+}
+
 function getWorker(): Worker {
   if (worker) return worker;
   worker = new Worker(new URL("../engine/worker.ts", import.meta.url), { type: "module" });
@@ -35,6 +52,8 @@ function getWorker(): Worker {
         waiting.delete(msg.requestId);
         return;
       case "preview:time":
+        // O Worker chegou ao fim: o som também para.
+        if (!msg.playing && viewStore.getState().playing) audio.stop();
         enginePlayhead = msg.t;
         viewStore.setState((s) => ({
           playhead: msg.t,
@@ -82,6 +101,23 @@ function sourcesOf(project: Project): Record<string, PreviewSource> {
   return Object.fromEntries(project.media.map((m) => [m.id, { url: mediaReadUrl(m.path), kind: m.kind }]));
 }
 
+const audio = new AudioOut({
+  requestPcm: (session, from, to) => sendAudio({ type: "audio:render", session, from, to }),
+  sendClock: (t, at) => send({ type: "preview:clock", t, at }),
+  duration: () => projectDuration(projectStore.getState().project),
+});
+
+/** Mudanças no projeto durante a reprodução reiniciam o som do ponto atual (agrupadas). */
+let restartTimer: ReturnType<typeof setTimeout> | null = null;
+function restartAudioSoon(): void {
+  if (restartTimer) return;
+  restartTimer = setTimeout(() => {
+    restartTimer = null;
+    const { playing, rate } = viewStore.getState();
+    if (playing && rate === 1) play(1, audio.timelineNow());
+  }, 120);
+}
+
 let attached = false;
 
 /**
@@ -95,18 +131,26 @@ export function attachPreviewCanvas(canvas: HTMLCanvasElement): void {
   const offscreen = canvas.transferControlToOffscreen();
   send({ type: "preview:attach", canvas: offscreen }, [offscreen]);
 
-  const sendProject = (project: Project) => send({ type: "preview:project", project, sources: sourcesOf(project) });
+  const sendProject = (project: Project) => {
+    const sources = sourcesOf(project);
+    send({ type: "preview:project", project, sources });
+    sendAudio({ type: "audio:project", project, sources });
+  };
   sendProject(projectStore.getState().project);
   send({ type: "preview:quality", scale: viewStore.getState().quality });
   send({ type: "preview:seek", t: viewStore.getState().playhead });
 
   projectStore.subscribe((s, prev) => {
-    if (s.project !== prev.project) sendProject(s.project);
+    if (s.project === prev.project) return;
+    sendProject(s.project);
+    if (audio.active) restartAudioSoon();
   });
   viewStore.subscribe((s, prev) => {
     if (s.playhead !== prev.playhead && s.playhead !== enginePlayhead) {
       enginePlayhead = null;
-      send({ type: "preview:seek", t: s.playhead });
+      // Pulo durante a reprodução com som: recomeça o som (e o vídeo) do novo ponto.
+      if (s.playing && s.rate === 1 && audio.active) play(1, s.playhead);
+      else send({ type: "preview:seek", t: s.playhead });
     }
     if (s.quality !== prev.quality) send({ type: "preview:quality", scale: s.quality });
   });
@@ -114,12 +158,28 @@ export function attachPreviewCanvas(canvas: HTMLCanvasElement): void {
 
 // ─── Controles de reprodução ─────────────────────────────────────────────────
 
-export function play(rate = 1): void {
+/**
+ * Toca a partir de `from` (padrão: playhead). Em 1× o som toca e o relógio do áudio
+ * manda; em outras velocidades (J/L) fica mudo e o Worker usa o próprio relógio.
+ */
+export function play(rate = 1, from = viewStore.getState().playhead): void {
+  const project = projectStore.getState().project;
+  const end = projectDuration(project);
+  if (end === 0) return;
+  // Tocar no fim volta ao começo (mesma regra do Worker).
+  if (rate > 0 && from >= end - frameToUs(1, project.settings.fps)) from = 0;
   viewStore.setState({ playing: true, rate });
-  send({ type: "preview:play", from: viewStore.getState().playhead, rate });
+  if (rate === 1) {
+    const at = audio.start(from);
+    send({ type: "preview:play", from, rate, at });
+  } else {
+    audio.stop();
+    send({ type: "preview:play", from, rate });
+  }
 }
 
 export function pause(): void {
+  audio.stop();
   if (!viewStore.getState().playing) return;
   viewStore.setState({ playing: false, rate: 1 });
   send({ type: "preview:pause" });

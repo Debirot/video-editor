@@ -130,6 +130,23 @@ Playback: relógio → frameStart(t) → videoLayersAt (evaluate.ts) → Picture
 - `src/app/engine.ts`: um Worker para o app; envia o projeto a cada mudança e o playhead quando
   o usuário o move (ignora o eco do que veio do Worker); a timeline acompanha o playhead tocando.
 
+### Áudio (T1.08)
+```
+src/app/audio.ts (thread da interface, Web Audio)       audioWorker.ts (Worker só de áudio)
+  sessão: t0 na timeline ↔ ctxStart no AudioContext       audioSegmentsIn (evaluate.ts)
+  bombeia a cada 200 ms: pede [até, até+4 s) ──audio:render──► AudioPool: AudioSampleSink → PCM f32
+  agenda AudioBufferSourceNode + GainNode (ganho e fades) ◄──audio:pcm (buffers transferidos)
+  getOutputTimestamp → preview:clock ───────────────────────► Worker de vídeo: Playback.clock()
+```
+- O relógio do áudio manda: o Worker de vídeo recebe a cada 200 ms o par (tempo da timeline,
+  instante absoluto em ms) e recalcula o seu relógio; tempos absolutos usam `performance.timeOrigin`
+  porque a origem do `performance.now()` muda entre a página e o Worker.
+- O áudio decodifica num Worker próprio para que imagem pesada nunca atrase o som.
+- Vídeo e áudio usam a mesma referência de tempo do arquivo (`input.getFirstTimestamp()`).
+- Primeiro bloco atrasado: o início da sessão é adiado em vez de cortar o começo do som.
+- Em velocidades diferentes de 1× (J/L) o som fica mudo e o Worker de vídeo usa o próprio relógio.
+- Mudanças no projeto durante a reprodução reiniciam o som do ponto atual (agrupadas em 120 ms).
+
 ### Edição com o mouse (T1.06b)
 - `src/timeline/gestures.ts`: máquina de gestos (scrub, clique, mover, aparar, retângulo).
   Mover e aparar abrem uma transação; a cada movimento a transação é cancelada e o passo

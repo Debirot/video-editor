@@ -5,6 +5,7 @@
 import {
   Eye,
   EyeOff,
+  Headphones,
   Lock,
   LockOpen,
   Magnet,
@@ -25,7 +26,7 @@ import { splitAtPlayhead, zoomBy, zoomToFit } from "@/app/editActions";
 import { useMediaDrag } from "@/app/mediaDrag";
 import { cn } from "@/lib/cn";
 import { projectStore } from "@/project/store";
-import { setTrackFlag } from "@/project/commands/tracks";
+import { setTrackFlag, setTrackGain } from "@/project/commands/tracks";
 import type { Track } from "@/project/types";
 import { TimelineCanvas } from "@/timeline/TimelineCanvas";
 
@@ -119,7 +120,7 @@ export function TimelinePanel() {
 }
 
 function TrackHeader({ track }: { track: Track }) {
-  const toggle = (flag: "hidden" | "muted" | "locked", label: string) =>
+  const toggle = (flag: "hidden" | "muted" | "locked" | "solo", label: string) =>
     projectStore.getState().applyCommand(label, setTrackFlag(track.id, flag, !track[flag]));
 
   const isVideo = track.kind === "video";
@@ -129,37 +130,83 @@ function TrackHeader({ track }: { track: Track }) {
   const VisIcon = visibility.icon;
 
   return (
-    <div className={cn(TRACK_HEIGHT, "flex items-center gap-1 border-b border-border bg-bg-2 pl-3 pr-1")}>
-      <span
-        className={cn("mr-auto truncate text-label font-semibold", isVideo ? "text-clip-video" : "text-clip-audio")}
-        title={track.name}
-      >
-        {track.name}
-      </span>
-      <Tip label={visibility.label}>
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label={visibility.label}
-          aria-pressed={visibility.on}
-          className={cn("px-1.5", visibility.on && "text-danger hover:text-danger")}
-          onClick={() => toggle(visibility.flag, visibility.label)}
+    <div className={cn(TRACK_HEIGHT, "flex flex-col justify-center border-b border-border bg-bg-2 pl-3 pr-1")}>
+      <div className="flex items-center gap-0.5">
+        <span
+          className={cn("mr-auto truncate text-label font-semibold", isVideo ? "text-clip-video" : "text-clip-audio")}
+          title={track.name}
         >
-          <VisIcon />
-        </Button>
-      </Tip>
-      <Tip label={track.locked ? "Destravar trilha" : "Travar trilha"}>
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label={track.locked ? "Destravar trilha" : "Travar trilha"}
-          aria-pressed={track.locked}
-          className={cn("px-1.5", track.locked && "text-accent hover:text-accent")}
-          onClick={() => toggle("locked", track.locked ? "Destravar trilha" : "Travar trilha")}
-        >
-          {track.locked ? <Lock /> : <LockOpen />}
-        </Button>
-      </Tip>
+          {track.name}
+        </span>
+        {!isVideo && (
+          <Tip label={track.solo ? "Tirar do solo" : "Solo (só as trilhas em solo tocam)"}>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Solo"
+              aria-pressed={track.solo}
+              className={cn("h-6 px-1.5", track.solo && "text-accent hover:text-accent")}
+              onClick={() => toggle("solo", track.solo ? "Tirar do solo" : "Solo")}
+            >
+              <Headphones />
+            </Button>
+          </Tip>
+        )}
+        <Tip label={visibility.label}>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label={visibility.label}
+            aria-pressed={visibility.on}
+            className={cn("h-6 px-1.5", visibility.on && "text-danger hover:text-danger")}
+            onClick={() => toggle(visibility.flag, visibility.label)}
+          >
+            <VisIcon />
+          </Button>
+        </Tip>
+        <Tip label={track.locked ? "Destravar trilha" : "Travar trilha"}>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label={track.locked ? "Destravar trilha" : "Travar trilha"}
+            aria-pressed={track.locked}
+            className={cn("h-6 px-1.5", track.locked && "text-accent hover:text-accent")}
+            onClick={() => toggle("locked", track.locked ? "Destravar trilha" : "Travar trilha")}
+          >
+            {track.locked ? <Lock /> : <LockOpen />}
+          </Button>
+        </Tip>
+      </div>
+      {!isVideo && <TrackVolume track={track} />}
     </div>
+  );
+}
+
+/**
+ * Volume da trilha em dB (−60 = mudo, +12 máximo). Arrastar vira uma entrada no histórico;
+ * dois cliques voltam a 0 dB. Solta o foco ao soltar, para Espaço e setas voltarem à timeline.
+ */
+function TrackVolume({ track }: { track: Track }) {
+  const store = projectStore.getState;
+  const label = track.gainDb <= -60 ? "mudo" : `${track.gainDb > 0 ? "+" : ""}${track.gainDb} dB`;
+  return (
+    <Tip label={`Volume: ${label} (dois cliques: 0 dB)`}>
+      <input
+        type="range"
+        min={-60}
+        max={12}
+        step={1}
+        value={track.gainDb}
+        aria-label={`Volume da trilha ${track.name}`}
+        className="mr-1 h-3 w-full cursor-pointer accent-accent"
+        onPointerDown={() => store().beginTransaction("Volume da trilha")}
+        onPointerUp={(e) => {
+          store().commitTransaction();
+          e.currentTarget.blur();
+        }}
+        onChange={(e) => store().applyCommand("Volume da trilha", setTrackGain(track.id, Number(e.target.value)))}
+        onDoubleClick={() => store().applyCommand("Volume da trilha", setTrackGain(track.id, 0))}
+      />
+    </Tip>
   );
 }

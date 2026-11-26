@@ -73,7 +73,8 @@ export class Playback {
     }
   }
 
-  play(from: Us, rate: number): void {
+  /** `at` em ms absolutos (performance.timeOrigin + now): quando o áudio começa a tocar `from`. */
+  play(from: Us, rate: number, at?: number): void {
     if (!this.project || this.duration() === 0) return;
     const end = this.duration();
     // Tocar no fim volta ao começo (e tocar para trás no começo vai para o fim).
@@ -81,7 +82,7 @@ export class Playback {
     if (rate > 0 && from >= end - this.frameUs()) start = 0;
     if (rate < 0 && from <= 0) start = end - this.frameUs();
     this.startT = start;
-    this.startWall = performance.now();
+    this.startWall = at !== undefined ? at - performance.timeOrigin : performance.now();
     this.rate = rate;
     this.dropped = 0;
     if (!this.playing) {
@@ -89,6 +90,13 @@ export class Playback {
       this.clearIdle();
       nextTick(this.tick);
     }
+  }
+
+  /** Correção pelo relógio do áudio, que manda: o vídeo segue o som. */
+  clock(t: Us, at: number): void {
+    if (!this.playing) return;
+    this.startT = t;
+    this.startWall = at - performance.timeOrigin;
   }
 
   pause(): void {
@@ -114,7 +122,9 @@ export class Playback {
 
   private now(): Us {
     if (!this.playing) return this.target;
-    return Math.round(this.startT + (performance.now() - this.startWall) * 1000 * this.rate);
+    // Antes do início agendado (o áudio ainda vai começar), fica no ponto de partida.
+    const elapsed = Math.max(0, performance.now() - this.startWall);
+    return Math.round(this.startT + elapsed * 1000 * this.rate);
   }
 
   private resize(): void {

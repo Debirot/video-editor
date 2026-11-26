@@ -104,6 +104,8 @@ Componentes de painel só montam peças daqui. Se falta uma peça, ela é criada
   O nome fica preso à borda esquerda quando o começo do clipe sai da tela.
   Trilha oculta ou muda: clipes a 35% de opacidade.
 - Playhead: linha de 1 px em `accent` com alça pentagonal na régua.
+- Cabeçalho de trilha de áudio: solo (fone, `accent` quando ligado), mudo (`danger`), trava e,
+  embaixo, volume de −60 dB (mudo) a +12 dB; dois cliques voltam a 0 dB; arrastar é um passo de desfazer.
 - Régua: marcas principais com pelo menos 80 px entre si (quadros, segundos ou minutos,
   conforme o zoom), marcas menores entre elas; rótulos "m:ss" ou "m:ss:ff".
 - Mouse: clicar ou arrastar na régua move o playhead (no início do quadro);

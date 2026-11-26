@@ -43,7 +43,9 @@ async function openVideo(url: string) {
     const track = await primaryVideoTrack(input);
     const picked = await pickDecoderConfig(track);
     if (!picked) throw new Error("codec não decodificável aqui (precisa de proxy)");
-    const firstTs = secondsToUs(await track.getFirstTimestamp());
+    // Referência do arquivo inteiro (não só da trilha de vídeo): o áudio usa a mesma,
+    // então imagem e som ficam alinhados mesmo quando uma trilha começa depois da outra.
+    const firstTs = secondsToUs(await input.getFirstTimestamp());
     return { input, track, config: picked.config, firstTs };
   } catch (e) {
     input.dispose();

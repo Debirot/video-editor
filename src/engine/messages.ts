@@ -67,6 +67,19 @@ export interface ExportResult {
 
 import type { Project } from "@/project/types";
 
+/**
+ * Worker de áudio (audioWorker.ts): separado do de vídeo para que a decodificação de
+ * imagem pesada nunca atrase o som, que é o relógio mestre.
+ */
+export type ToAudioWorker =
+  | { type: "audio:project"; project: Project; sources: Record<string, PreviewSource> }
+  /** Pede o PCM do intervalo [from, to) da timeline para tocar no Web Audio. */
+  | { type: "audio:render"; session: number; from: number; to: number };
+
+export type FromAudioWorker =
+  | { type: "audio:pcm"; session: number; from: number; to: number; chunks: PcmChunk[] }
+  | { type: "error"; context: string; message: string };
+
 export type ToWorker =
   | { type: "init"; canvas: OffscreenCanvas }
   | { type: "proof:open"; source: MediaRef }
@@ -80,7 +93,11 @@ export type ToWorker =
   | { type: "preview:attach"; canvas: OffscreenCanvas }
   | { type: "preview:project"; project: Project; sources: Record<string, PreviewSource> }
   | { type: "preview:seek"; t: number }
-  | { type: "preview:play"; from: number; rate: number }
+  /** `at`: instante (performance.timeOrigin + now, em ms) em que `from` começa a tocar. Sem `at`, o Worker usa o próprio relógio. */
+  | { type: "preview:play"; from: number; rate: number; at?: number }
+  /** Correção pelo relógio do áudio: em `at` (ms absolutos) a timeline está em `t`. */
+  | { type: "preview:clock"; t: number; at: number }
+
   | { type: "preview:pause" }
   | { type: "preview:quality"; scale: PreviewQuality };
 
@@ -88,6 +105,22 @@ export type ToWorker =
 export interface PreviewSource {
   url: string;
   kind: "video" | "audio" | "image";
+}
+
+/** Áudio decodificado de um trecho de clipe, pronto para o Web Audio. */
+export interface PcmChunk {
+  clipId: string;
+  start: number;
+  end: number;
+  sampleRate: number;
+  /** Planar float32, 1 ou 2 canais. */
+  channels: Float32Array[];
+  speed: number;
+  gain: number;
+  clipStart: number;
+  clipEnd: number;
+  fadeIn: number;
+  fadeOut: number;
 }
 
 /** Fração da resolução do projeto usada no preview. */
@@ -113,4 +146,5 @@ export type FromWorker =
   /** Tempo mostrado no preview (início de quadro). Enviado a cada quadro durante a reprodução. */
   | { type: "preview:time"; t: number; playing: boolean }
   | { type: "preview:stats"; droppedFrames: number; openFrames: number; renderMs: number }
+
   | { type: "error"; context: string; message: string };

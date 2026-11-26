@@ -118,7 +118,10 @@ async function handle(msg: ToWorker): Promise<void> {
       previewPlayback.seek(msg.t);
       return;
     case "preview:play":
-      previewPlayback.play(msg.from, msg.rate);
+      previewPlayback.play(msg.from, msg.rate, msg.at);
+      return;
+    case "preview:clock":
+      previewPlayback.clock(msg.t, msg.at);
       return;
     case "preview:pause":
       previewPlayback.pause();

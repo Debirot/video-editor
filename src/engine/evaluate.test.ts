@@ -48,3 +48,55 @@ describe("frameStart", () => {
     expect(frameStart(33_332, { num: 30, den: 1 })).toBe(0);
   });
 });
+
+import { audioSegmentsIn, dbToGain } from "./evaluate";
+import type { Project } from "@/project/types";
+
+/** A1: c_a1 0–4 s (fonte desde 10 s, -6 dB, fades); A2: c_a2 2–8 s (música). */
+function audioProject(): Project {
+  const p = makeSmallProject();
+  p.media[0]!.probe.audioCodec = "aac";
+  p.media.push({ ...structuredClone(p.media[0]!), id: "m_song", kind: "audio" });
+  const a1 = p.tracks.find((t) => t.id === "t_a1")!;
+  a1.clips = [makeClip({ id: "c_a1", start: 0, duration: 4_000_000, sourceIn: 10_000_000, audio: { gainDb: -6, fadeIn: 500_000, fadeOut: 1_000_000 } })];
+  p.tracks.push({ ...structuredClone(a1), id: "t_a2", clips: [makeClip({ id: "c_a2", mediaId: "m_song", start: 2_000_000, duration: 6_000_000 })] });
+  return p;
+}
+
+describe("audioSegmentsIn", () => {
+  it("corta os clipes no intervalo e calcula a fonte e o ganho", () => {
+    const segs = audioSegmentsIn(audioProject(), 1_000_000, 3_000_000);
+    expect(segs.map((s) => [s.clipId, s.start, s.end, s.sourceStart])).toEqual([
+      ["c_a1", 1_000_000, 3_000_000, 11_000_000],
+      ["c_a2", 2_000_000, 3_000_000, 0],
+    ]);
+    expect(segs[0]!.gain).toBeCloseTo(0.501, 3);
+    expect(segs[0]).toMatchObject({ clipStart: 0, clipEnd: 4_000_000, fadeIn: 500_000, fadeOut: 1_000_000 });
+  });
+
+  it("mudo, solo e volume mínimo silenciam", () => {
+    const p = audioProject();
+    p.tracks.find((t) => t.id === "t_a2")!.muted = true;
+    expect(audioSegmentsIn(p, 0, 8_000_000).map((s) => s.clipId)).toEqual(["c_a1"]);
+    p.tracks.find((t) => t.id === "t_a2")!.muted = false;
+    p.tracks.find((t) => t.id === "t_a2")!.solo = true;
+    expect(audioSegmentsIn(p, 0, 8_000_000).map((s) => s.clipId)).toEqual(["c_a2"]);
+    p.tracks.find((t) => t.id === "t_a2")!.gainDb = -60;
+    expect(audioSegmentsIn(p, 0, 8_000_000)).toEqual([]);
+  });
+
+  it("clipes de vídeo, mídia sem áudio ou ausente não tocam", () => {
+    const p = audioProject();
+    expect(audioSegmentsIn(p, 0, 8_000_000).some((s) => s.clipId.startsWith("c_1"))).toBe(false);
+    p.media[0]!.probe.audioCodec = undefined;
+    expect(audioSegmentsIn(p, 0, 8_000_000).map((s) => s.clipId)).toEqual(["c_a2"]);
+    p.media[1]!.missing = true;
+    expect(audioSegmentsIn(p, 0, 8_000_000)).toEqual([]);
+  });
+
+  it("dbToGain", () => {
+    expect(dbToGain(0)).toBe(1);
+    expect(dbToGain(-60)).toBe(0);
+    expect(dbToGain(6)).toBeCloseTo(1.995, 3);
+  });
+});

@@ -101,3 +101,9 @@ As decisões de stack do plano técnico (seção 2) valem como D-001 a D-006.
 - Decisão: relógio por performance.now() no Worker até a T1.08; quadros atrasados são descartados (contados) em vez de atrasar o relógio; parado, os quadros guardados são soltos depois de 1,5 s; navegar (setas, Home/End, cortes) pausa; o preview compõe cada camada encaixada (contain) com opacidade, sem transformações (Fase 2).
 - Descartadas: renderizar trechos antecipadamente; manter quadros guardados para sempre (o contador nunca voltaria a 0); reprodução para trás com decodificação reversa (complexa).
 - Consequências: J é lento em vídeos com GOP longo (recomeça do keyframe a cada quadro); com proxies (Fase 3) melhora.
+
+### D-017 · 2026-11-26 · Áudio do preview
+- Contexto: o Web Audio só existe na thread da interface; o plano manda o relógio do áudio comandar o vídeo.
+- Decisão: decodificação em um Worker de áudio separado (AudioSampleSink do Mediabunny), PCM transferido sem cópia; agendamento por AudioBufferSourceNode na interface, em blocos (1 s, depois 4 s, ~6 s à frente); correção do relógio do vídeo a cada 200 ms por getOutputTimestamp; sem som fora de 1×; velocidade de clipe muda também o tom (playbackRate) até a Fase 3.
+- Descartadas: decodificar no Worker de vídeo (o teste mostrou blocos 2 s atrasados com 4K em software); AudioWorklet com buffer circular (mais código, mesma latência para o preview); decodificar o arquivo inteiro (memória).
+- Consequências: o primeiro play tem ~0,2 a 0,5 s de latência; emendas entre blocos são agendadas no tempo exato e não devem estalar, mas isso precisa ser ouvido no Windows.

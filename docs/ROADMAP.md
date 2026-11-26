@@ -147,10 +147,22 @@ Pronto quando:
 Limitações conhecidas: sem áudio e relógio por performance.now() até T1.08; J (para trás) recomeça
 do keyframe a cada quadro, então é lento; transformações, efeitos e textos entram na Fase 2.
 
-### T1.08 Áudio · próxima
-Mixer em Web Audio, volume e mudo por trilha, áudio ligado ao vídeo, relógio do áudio como mestre.
+### T1.08 Áudio · concluída
+Objetivo: mixer em Web Audio, volume, mudo e solo por trilha, áudio ligado ao vídeo, relógio do áudio mestre.
+Arquivos: src/engine/{evaluate,audioWorker,messages,playback,worker}.ts, src/engine/audio/decode.ts,
+src/engine/decode/pool.ts (referência de tempo do arquivo), src/app/{audio,engine}.ts,
+src/panels/timeline/TimelinePanel.tsx
+Pronto quando:
+- [x] audioSegmentsIn testado: recorte no intervalo, fonte, ganho em dB, mudo, solo, volume mínimo,
+      clipes de vídeo e mídia sem áudio ou ausente não tocam
+- [x] Envelope de volume testado: fades de entrada e saída, fades que se cruzam, pontos de quebra
+- [x] No navegador: AAC 48 kHz do vídeo (A1) e MP3 44,1 kHz (A2) tocam juntos com amplitude real;
+      blocos chegam antes da hora (Worker de áudio separado); primeiro bloco sem corte; mudo e solo
+      mudam o que toca; em 2× não toca som
+- [ ] No Windows: áudio a menos de um quadro do vídeo depois de 2 min (critério do Portão 1)
+Fora do escopo: waveforms (Fase 2), áudio acelerado preservando o tom (Fase 3), fades editáveis na interface (Fase 2).
 
-### T1.09 Salvar e abrir
+### T1.09 Salvar e abrir · próxima
 JSON simples (project_io.rs com escrita atômica), sem autosave. Registrar mídias com allow_media ao abrir.
 
 ### T1.10 Exportação
