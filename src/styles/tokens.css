@@ -1,0 +1,54 @@
+/*
+ * Tokens de design. Fonte única de cores, espaçamentos, raios e tipografia.
+ * Lidos pelo Tailwind (globals.css) e pelo canvas da timeline (getComputedStyle).
+ * Nenhum componente usa cor fixa no código. Ver docs/UI_GUIDE.md.
+ */
+:root {
+  /* Cores */
+  --bg-0: #0e0f11; /* fundo da janela */
+  --bg-1: #15171a; /* painéis */
+  --bg-2: #1c1f23; /* campos, cartões, cabeçalhos de trilha */
+  --border: #2a2e34; /* divisórias e contornos */
+  --text-1: #e8eaed; /* texto principal */
+  --text-2: #9aa0a6; /* rótulos e texto secundário */
+  --accent: #f2a93b; /* seleção, foco, playhead, Exportar */
+  --accent-contrast: #1a1204; /* texto sobre accent */
+  --danger: #e5484d; /* erros, mídia ausente */
+  --clip-video: #4c6fa8;
+  --clip-audio: #3f8f6b;
+  --clip-text: #8a63c9;
+  --clip-image: #4e8c99;
+
+  /* Tipografia */
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, monospace;
+  --text-body: 13px;
+  --text-label: 12px;
+  --text-title: 14px;
+
+  /* Espaçamento (escala de 4 px) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+
+  /* Raios */
+  --radius-control: 6px;
+  --radius-panel: 8px;
+
+  /* Layout */
+  --topbar-height: 44px;
+
+  /* Movimento */
+  --duration-fast: 120ms;
+  --duration-normal: 180ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-normal: 0ms;
+  }
+}

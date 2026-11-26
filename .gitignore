@@ -1,0 +1,11 @@
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+src-tauri/binaries/*
+!src-tauri/binaries/README.md
+tests/fixtures/*.mp4
+tests/fixtures/*.mov
+tests/fixtures/*.webm
+*.log
+.DS_Store
