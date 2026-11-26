@@ -142,7 +142,8 @@ Pronto quando:
 - [x] No navegador (H.264 real no Worker): seek em 5 s mostra o quadro 150; clipe vertical em 15 s mostra
       a fonte em 2,970 s com faixas; PNG com transparência na V2 por cima; Espaço toca e pausa;
       L L = 2×; K pausa; qualidade 1/2; quadros abertos voltam a 0 depois de parado
-- [ ] No Windows: preview 1080p de uma trilha sem queda perceptível (critério do Portão 1)
+- [x] No Windows: 1080p30 H.264 tocado até o fim com 1 quadro perdido em 10 s e quadros abertos em 0
+      ao parar (validado em 2026-11-26). Falta medir 4K e GPU integrada.
 Limitações conhecidas: sem áudio e relógio por performance.now() até T1.08; J (para trás) recomeça
 do keyframe a cada quadro, então é lento; transformações, efeitos e textos entram na Fase 2.
 
