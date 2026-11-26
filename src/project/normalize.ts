@@ -5,6 +5,7 @@
  * valida o essencial, preenche campos omitidos e migra versões antigas.
  */
 import { newId } from "@/lib/ids";
+import { relativePath } from "@/lib/paths";
 import {
   CURRENT_SCHEMA_VERSION,
   type Clip,
@@ -184,11 +185,15 @@ export function normalizeProject(input: unknown): Project {
   };
 }
 
-/** Texto gravado em project.json. Remove campos calculados ao abrir. */
-export function serializeProject(project: Project): string {
+/**
+ * Texto gravado em project.json. Remove campos calculados ao abrir e, com `dir`
+ * (pasta do projeto), atualiza o `relPath` de cada mídia para religar depois.
+ */
+export function serializeProject(project: Project, dir?: string): string {
   const media = project.media.map((m) => {
     const copy = { ...m };
     delete copy.missing;
+    if (dir) copy.relPath = relativePath(dir, m.path);
     return copy;
   });
   return JSON.stringify({ ...project, media }, null, 2);

@@ -41,11 +41,13 @@ describe("actionFor", () => {
     expect(actionFor(key("j"))).toBe("shuttleBack");
     expect(actionFor(key("k"))).toBe("stop");
     expect(actionFor(key("l"))).toBe("shuttleForward");
+    expect(actionFor(key("s", { ctrlKey: true }))).toBe("save");
+    expect(actionFor(key("S", { ctrlKey: true, shiftKey: true }))).toBe("saveAs");
+    expect(actionFor(key("o", { ctrlKey: true }))).toBe("open");
   });
 
   it("teclas sem atalho e combinações diferentes não disparam", () => {
     expect(actionFor(key("q"))).toBeNull();
-    expect(actionFor(key("s", { ctrlKey: true }))).toBeNull(); // Ctrl+S é salvar (T1.09)
     expect(actionFor(key("s", { altKey: true }))).toBeNull();
   });
 

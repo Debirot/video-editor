@@ -3,7 +3,7 @@
  * configurações e Exportar (o único botão em cor de destaque).
  */
 import { useState } from "react";
-import { Download, ListChecks, Loader2, PanelRightClose, PanelRightOpen, Redo2, Settings, Undo2 } from "lucide-react";
+import { Download, FolderOpen, ListChecks, Loader2, PanelRightClose, PanelRightOpen, Redo2, Save, Settings, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/cn";
@@ -11,6 +11,9 @@ import { useProject } from "@/app/useProject";
 import { projectStore } from "@/project/store";
 import { renameProject } from "@/project/commands/project";
 import { pendingTasks, useRuntime } from "@/app/mediaRuntime";
+import { openProjectDialog, saveProject, useFile } from "@/app/projectFile";
+import { baseName } from "@/lib/paths";
+import { isTauri } from "@/lib/ipc";
 
 export function TopBar({ inspectorOpen, onToggleInspector }: { inspectorOpen: boolean; onToggleInspector: () => void }) {
   const past = useProject((s) => s.history.past);
@@ -20,12 +23,28 @@ export function TopBar({ inspectorOpen, onToggleInspector }: { inspectorOpen: bo
   const undoLabel = past.at(-1)?.label;
   const redoLabel = future[0]?.label;
   const tasks = useRuntime(pendingTasks);
+  const dirty = useProject((s) => s.revision !== s.savedRevision);
+  const dir = useFile((s) => s.dir);
 
   return (
     <header className="flex h-[var(--topbar-height)] shrink-0 items-center gap-1 border-b border-border bg-bg-1 px-3">
       <ProjectName />
+      {dirty && (
+        <span className="-ml-1 size-2 rounded-full bg-accent" role="status" aria-label="Alterações não salvas" title="Alterações não salvas" />
+      )}
 
       <div className="ml-3 flex items-center">
+        <Tip label={dir ? `Salvar em ${baseName(dir)}` : "Salvar projeto"} shortcut="Ctrl+S">
+          <Button variant="ghost" size="icon" aria-label="Salvar" disabled={!isTauri()} onClick={() => void saveProject()}>
+            <Save />
+          </Button>
+        </Tip>
+        <Tip label="Abrir projeto" shortcut="Ctrl+O">
+          <Button variant="ghost" size="icon" aria-label="Abrir projeto" disabled={!isTauri()} onClick={() => void openProjectDialog()}>
+            <FolderOpen />
+          </Button>
+        </Tip>
+        <span className="mx-1 h-5 w-px bg-border" />
         <Tip label={undoLabel ? `Desfazer: ${undoLabel}` : "Nada para desfazer"} shortcut="Ctrl+Z">
           <Button variant="ghost" size="icon" aria-label="Desfazer" disabled={!undoLabel || !!pending} onClick={undo}>
             <Undo2 />

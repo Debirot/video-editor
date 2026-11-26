@@ -34,7 +34,11 @@ export type Action =
   | "togglePlay"
   | "shuttleBack"
   | "stop"
-  | "shuttleForward";
+  | "shuttleForward"
+  | "save"
+  | "saveAs"
+  | "open"
+  | "newProject";
 
 export const SHORTCUTS: Record<string, Action> = {
   "Ctrl+Z": "undo",
@@ -68,6 +72,10 @@ export const SHORTCUTS: Record<string, Action> = {
   J: "shuttleBack",
   K: "stop",
   L: "shuttleForward",
+  "Ctrl+S": "save",
+  "Ctrl+Shift+S": "saveAs",
+  "Ctrl+O": "open",
+  "Ctrl+N": "newProject",
 };
 
 export interface KeyLike {

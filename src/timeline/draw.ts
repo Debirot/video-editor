@@ -80,7 +80,8 @@ function fileName(path: string): string {
 function clipLabel(clip: Clip, media: Media | undefined): string {
   if (clip.kind === "text") return clip.text?.content ?? "Texto";
   if (clip.kind === "shape") return "Forma";
-  return media ? fileName(media.path) : "Mídia ausente";
+  if (!media) return "Mídia ausente";
+  return media.missing ? `Ausente: ${fileName(media.path)}` : fileName(media.path);
 }
 
 function drawClip(input: DrawInput, track: Track, clip: Clip, rowY: number, rowH: number): void {
@@ -115,7 +116,7 @@ function drawClip(input: DrawInput, track: Track, clip: Clip, rowY: number, rowH
       textX = x + thumbW + 6;
     }
   }
-  if (!media && clip.mediaId) {
+  if ((!media || media.missing) && clip.mediaId) {
     ctx.fillStyle = p.bg0;
     ctx.globalAlpha = 0.4;
     ctx.fillRect(x, y, w, h);

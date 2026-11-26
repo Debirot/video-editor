@@ -45,6 +45,10 @@ Wrappers em `src/lib/ipc.ts`; handlers em `src-tauri/src/commands.rs`.
 | `finish_export` | `id` | bytes gravados | T1.01 |
 | `cancel_export` | `id` | — | T1.01 |
 | `import_media` | `paths[]` | `ImportOutcome[]` (ok com kind, fingerprint, probe, pôster; ou failed com erro) | T1.04 |
+| `save_project` | `path`, `json`, `name` | pasta `.vproj` (grava atômico e põe nos recentes) | T1.09 |
+| `open_project` | `path` (pasta ou project.json) | `{ dir, json }` | T1.09 |
+| `recent_projects` | — | `RecentProject[]` (só pastas que existem) | T1.09 |
+| `attach_media` | `paths[]` | `boolean[]` (existe? autoriza no media://) | T1.09 |
 
 | Evento | Payload | Desde |
 |---|---|---|
@@ -146,6 +150,16 @@ src/app/audio.ts (thread da interface, Web Audio)       audioWorker.ts (Worker s
 - Primeiro bloco atrasado: o início da sessão é adiado em vez de cortar o começo do som.
 - Em velocidades diferentes de 1× (J/L) o som fica mudo e o Worker de vídeo usa o próprio relógio.
 - Mudanças no projeto durante a reprodução reiniciam o som do ponto atual (agrupadas em 120 ms).
+
+### Salvar e abrir (T1.09)
+- `src/app/projectFile.ts`: salvar (primeira vez pede o local), salvar como, abrir, novo, pergunta
+  "Salvar / Não salvar / Cancelar" ao descartar alterações e ao fechar a janela (`onCloseRequested`;
+  se a pergunta falhar, a janela fecha mesmo assim), título "• Nome — Editor".
+- Ao salvar, `serializeProject(projeto, pasta)` grava o `relPath` de cada mídia. Ao abrir, a mídia é
+  procurada no caminho absoluto e, se não estiver lá, pelo `relPath` a partir da pasta atual; a que
+  não for achada fica com `missing` (calculado, nunca gravado).
+- `src-tauri/src/project_io.rs`: escrita atômica (`.tmp` + `sync_all` + rename) e recentes em
+  `app_config_dir/recent.json`.
 
 ### Edição com o mouse (T1.06b)
 - `src/timeline/gestures.ts`: máquina de gestos (scrub, clique, mover, aparar, retângulo).

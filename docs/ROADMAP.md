@@ -162,10 +162,22 @@ Pronto quando:
 - [ ] No Windows: áudio a menos de um quadro do vídeo depois de 2 min (critério do Portão 1)
 Fora do escopo: waveforms (Fase 2), áudio acelerado preservando o tom (Fase 3), fades editáveis na interface (Fase 2).
 
-### T1.09 Salvar e abrir · próxima
-JSON simples (project_io.rs com escrita atômica), sem autosave. Registrar mídias com allow_media ao abrir.
+### T1.09 Salvar e abrir · concluída
+Objetivo: JSON simples com escrita atômica, sem autosave; registrar mídias ao abrir; tela inicial com recentes.
+Arquivos: src-tauri/src/{project_io,commands,main}.rs, src-tauri/capabilities/default.json, src/lib/{ipc,paths}.ts,
+src/project/normalize.ts (relPath), src/app/{projectFile,importMedia,shortcuts,editActions,App}.ts(x),
+src/panels/{StartScreen,TopBar}.tsx, src/panels/library/MediaLibrary.tsx, src/timeline/draw.ts
+Pronto quando:
+- [x] project_io testado: pasta a partir da escolha, salvar e abrir, sobrescrever sem sobrar temporário,
+      erro claro sem project.json, recentes (sem repetir, máximo 10, some se a pasta sumir, arquivo corrompido)
+- [x] paths.ts testado: relativo em Windows (maiúsculas) e Unix, discos diferentes, ida e volta com a pasta movida
+- [x] No navegador: tela inicial com recentes; ponto e "•" no título com alterações; Ctrl+S grava com relPath;
+      Ctrl+N pergunta (Cancelar mantém, Não salvar descarta); Ctrl+O acha a mídia pelo relPath depois de mover
+      a pasta; mídia sumida vira aviso e selo "Ausente"
+- [ ] No Windows: salvar, fechar o app (pergunta se houver alterações), abrir pelos recentes
+Fora do escopo: autosave e versões, religar mídia ausente (Fase 2).
 
-### T1.10 Exportação
+### T1.10 Exportação · próxima
 MP4 H.264, H.265 quando disponível, resolução, FPS, bitrate, progresso e cancelamento.
 Áudio com OfflineAudioContext + AudioEncoder. Reaproveita export.ts.
 

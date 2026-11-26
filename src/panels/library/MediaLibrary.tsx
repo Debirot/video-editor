@@ -93,7 +93,7 @@ function MediaItem({ media }: { media: Media }) {
   const runtime = useRuntime((s) => s.byHash[media.fingerprint.partialHash]) as MediaRuntime | undefined;
   const name = fileName(media.path);
   const KindIcon = media.kind === "audio" ? AudioLines : media.kind === "image" ? ImageIcon : Film;
-  const needsProxy = runtime?.decode === "unsupported";
+  const needsProxy = !media.missing && runtime?.decode === "unsupported";
   const vfr = media.probe.variableFrameRate === true;
 
   return (
@@ -109,7 +109,7 @@ function MediaItem({ media }: { media: Media }) {
       <div
         className={cn(
           "relative flex aspect-video items-center justify-center overflow-hidden rounded-control border bg-bg-0",
-          needsProxy ? "border-danger" : "border-border group-hover:border-text-2",
+          needsProxy || media.missing ? "border-danger" : "border-border group-hover:border-text-2",
         )}
       >
         {runtime?.poster === "ready" && runtime.posterUrl ? (
@@ -126,6 +126,7 @@ function MediaItem({ media }: { media: Media }) {
           </span>
         )}
         <div className="absolute top-1 left-1 flex gap-1">
+          {media.missing && <Badge tone="danger" label="Ausente" hint={`Arquivo não encontrado: ${media.path}`} />}
           {needsProxy && <Badge tone="danger" label="Proxy" hint="O WebCodecs não decodifica este codec aqui. Vai precisar de proxy." />}
           {vfr && <Badge tone="accent" label="VFR" hint="Taxa de quadros variável: pode dessincronizar o áudio. Conversão chega com os proxies." />}
         </div>

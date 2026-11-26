@@ -6,6 +6,7 @@ mod commands;
 mod ffmpeg;
 mod jobs;
 mod media;
+mod project_io;
 mod protocol;
 mod time;
 
@@ -40,6 +41,10 @@ fn main() {
             commands::finish_export,
             commands::cancel_export,
             commands::import_media,
+            commands::save_project,
+            commands::open_project,
+            commands::recent_projects,
+            commands::attach_media,
         ])
         .run(tauri::generate_context!())
         .expect("erro ao iniciar o app");

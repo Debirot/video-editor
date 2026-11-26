@@ -14,6 +14,7 @@ import { liveSelection, selectionStore, setSelection } from "./selectionStore";
 import type { Action } from "./shortcuts";
 import { viewStore } from "./viewStore";
 import { pause, shuttle, togglePlay } from "./engine";
+import { newProject, openProjectDialog, saveProject, saveProjectAs } from "./projectFile";
 
 function viewport(): Viewport {
   const v = viewStore.getState();
@@ -84,6 +85,18 @@ export function runAction(action: Action): void {
   if (navigation.includes(action)) pause();
 
   switch (action) {
+    case "save":
+      void saveProject();
+      return;
+    case "saveAs":
+      void saveProjectAs();
+      return;
+    case "open":
+      void openProjectDialog();
+      return;
+    case "newProject":
+      void newProject();
+      return;
     case "togglePlay":
       return togglePlay();
     case "shuttleBack":

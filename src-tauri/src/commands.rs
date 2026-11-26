@@ -155,3 +155,70 @@ async fn try_import(app: &AppHandle, path: &std::path::Path) -> Result<ImportedM
         poster_pending,
     })
 }
+
+// ─── Projetos (T1.09) ────────────────────────────────────────────────────────
+
+fn recent_file(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_config_dir()
+        .map(|d| d.join("recent.json"))
+        .map_err(|e| e.to_string())
+}
+
+/// Grava o projeto (texto já serializado pela interface) e o põe nos recentes.
+/// `path` pode ser a pasta .vproj ou um nome sem extensão. Devolve a pasta.
+#[tauri::command]
+pub async fn save_project(
+    app: AppHandle,
+    path: PathBuf,
+    json: String,
+    name: String,
+) -> Result<PathBuf, String> {
+    let recent = recent_file(&app)?;
+    tokio::task::spawn_blocking(move || {
+        let dir = crate::project_io::save(&path, &json).map_err(|e| describe(&path, e))?;
+        crate::project_io::add_recent(&recent, &dir, &name).map_err(|e| e.to_string())?;
+        Ok(dir)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[derive(Serialize)]
+pub struct OpenedProject {
+    pub dir: PathBuf,
+    pub json: String,
+}
+
+/// Lê o project.json da pasta escolhida e põe nos recentes (com o nome que a interface
+/// confirmar depois ao salvar; aqui usa o nome da pasta).
+#[tauri::command]
+pub async fn open_project(app: AppHandle, path: PathBuf) -> Result<OpenedProject, String> {
+    let recent = recent_file(&app)?;
+    tokio::task::spawn_blocking(move || {
+        let (dir, json) = crate::project_io::open(&path).map_err(|e| describe(&path, e))?;
+        let name = dir
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        crate::project_io::add_recent(&recent, &dir, &name).map_err(|e| e.to_string())?;
+        Ok(OpenedProject { dir, json })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub fn recent_projects(app: AppHandle) -> Result<Vec<crate::project_io::RecentProject>, String> {
+    Ok(crate::project_io::existing_recent(&recent_file(&app)?))
+}
+
+/// Ao abrir um projeto: para cada caminho, diz se o arquivo existe e, se existir,
+/// autoriza a leitura pelo media://.
+#[tauri::command]
+pub fn attach_media(state: State<'_, MediaState>, paths: Vec<PathBuf>) -> Vec<bool> {
+    paths
+        .iter()
+        .map(|p| p.is_file() && state.allow(p).is_ok())
+        .collect()
+}

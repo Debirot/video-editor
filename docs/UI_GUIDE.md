@@ -72,6 +72,13 @@ Tema escuro neutro, sem tons azulados, com uma única cor de destaque âmbar.
 
 O canvas da timeline lê os mesmos tokens com `getComputedStyle(document.documentElement)`.
 
+## Tela inicial e estado do arquivo
+
+- Tela inicial (`StartScreen`): "Novo projeto" (accent), "Abrir projeto…" e a lista de recentes
+  (nome, data, caminho). Aparece ao abrir o app.
+- Alterações não salvas: ponto `accent` de 8 px ao lado do nome do projeto e "• " no título da janela.
+- Mídia ausente: selo "Ausente" (`danger`) na biblioteca e "Ausente: nome" no clipe, escurecido.
+
 ## Componentes base (src/components/ui)
 
 | Componente | Variantes | Desde |
@@ -134,7 +141,9 @@ Botões sem função ainda aparecem desabilitados com tooltip "(em breve)".
 | Espaço | Reproduzir ou pausar | T1.07 |
 | J / K / L | Tocar para trás / pausar / tocar para frente; repetir J ou L dobra (até 8×) | T1.07 |
 | M | Adicionar marcador | Fase 2 |
-| Ctrl + S / Ctrl + E | Salvar / exportar | T1.09 / T1.10 |
+| Ctrl + S / Ctrl + Shift + S | Salvar / salvar como | T1.09 |
+| Ctrl + O / Ctrl + N | Abrir / novo projeto | T1.09 |
+| Ctrl + E | Exportar | T1.10 |
 
 Seleção: clique num clipe seleciona ele e o clipe ligado (vídeo + áudio do mesmo arquivo);
 Ctrl + clique soma ou tira; clique em área vazia limpa; arrastar na área vazia desenha um

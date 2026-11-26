@@ -104,6 +104,24 @@ async function checkVideo(media: Media): Promise<void> {
   patchRuntime(hash, { decode: r.decodable ? "ok" : "unsupported", hardware: r.hardware === "prefer-hardware" });
 }
 
+/**
+ * Depois de abrir um projeto: refaz pôsteres (do cache, se existirem) e a verificação de
+ * codec das mídias encontradas. Não muda o projeto.
+ */
+export async function restoreMedia(media: Media[]): Promise<void> {
+  const present = media.filter((m) => !m.missing);
+  if (present.length === 0) return;
+  const outcomes = await ipc.importMedia(present.map((m) => m.path)).catch(() => []);
+  for (const o of outcomes) {
+    if (o.status !== "ok") continue;
+    const hash = o.media.fingerprint.partialHash;
+    patchRuntime(hash, o.media.poster
+      ? { poster: "ready", posterUrl: mediaCacheUrl(o.media.poster) }
+      : { poster: o.media.posterPending ? "pending" : "none" });
+  }
+  for (const m of present) if (m.kind === "video") void checkVideo(m);
+}
+
 /** Atualiza pôsteres quando a fila do Rust termina. Chamar uma vez ao abrir o app. */
 export function listenForJobs(): Promise<() => void> {
   return onJobDone((e) => {

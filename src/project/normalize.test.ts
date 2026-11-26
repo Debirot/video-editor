@@ -44,6 +44,14 @@ describe("normalizeProject", () => {
     expect(p.tracks[0]!.clips.map((c) => c.id)).toEqual(["c_1", "c_2"]);
   });
 
+  it("com a pasta do projeto, grava o caminho relativo das mídias", () => {
+    const p = makeSmallProject();
+    p.media[0]!.path = "C:\\Users\\m\\Videos\\a.mp4";
+    const json = JSON.parse(serializeProject(p, "C:\\Users\\m\\Projetos\\T.vproj"));
+    expect(json.media[0].relPath).toBe("../../Videos/a.mp4");
+    expect(JSON.parse(serializeProject(p)).media[0].relPath).toBeNull();
+  });
+
   it("não grava o campo calculado missing", () => {
     const p = makeSmallProject();
     p.media[0]!.missing = true;

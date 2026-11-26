@@ -46,7 +46,22 @@ export const ipc = {
   cancelExport: (id: number) => invoke<void>("cancel_export", { id }),
   /** ffprobe + fingerprint de cada arquivo; autoriza a leitura e enfileira pôsteres. */
   importMedia: (paths: string[]) => invoke<ImportOutcome[]>("import_media", { paths }),
+  /** Grava o project.json (atômico) e põe nos recentes. Devolve a pasta .vproj. */
+  saveProject: (path: string, json: string, name: string) => invoke<string>("save_project", { path, json, name }),
+  /** Lê o project.json da pasta (ou do arquivo) escolhida. */
+  openProject: (path: string) => invoke<{ dir: string; json: string }>("open_project", { path }),
+  recentProjects: () => invoke<RecentProject[]>("recent_projects"),
+  /** Para cada caminho: existe? (e, se existir, autoriza a leitura pelo media://). */
+  attachMedia: (paths: string[]) => invoke<boolean[]>("attach_media", { paths }),
 };
+
+/** Espelha project_io::RecentProject. */
+export interface RecentProject {
+  path: string;
+  name: string;
+  /** Segundos desde 1970. */
+  openedAt: number;
+}
 
 export function onJobDone(handler: (e: JobDone) => void): Promise<UnlistenFn> {
   return listen<JobDone>("job:done", (ev) => handler(ev.payload));
