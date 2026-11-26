@@ -1,6 +1,6 @@
 /**
- * Painel inferior: barra fina de ferramentas, cabeçalhos de trilha e área das trilhas.
- * O desenho em canvas (régua, clipes, playhead, zoom) entra em T1.05, em src/timeline/.
+ * Painel inferior: barra fina de ferramentas, cabeçalhos de trilha (DOM) e área das
+ * trilhas (canvas, src/timeline/). Os cabeçalhos acompanham a rolagem vertical do canvas.
  */
 import { useState } from "react";
 import {
@@ -9,6 +9,7 @@ import {
   Lock,
   LockOpen,
   Magnet,
+  Maximize2,
   MousePointer2,
   Scissors,
   Volume2,
@@ -19,15 +20,36 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tip } from "@/components/ui/tooltip";
 import { useProject } from "@/app/useProject";
+import { useView, viewStore } from "@/app/viewStore";
 import { cn } from "@/lib/cn";
 import { projectStore } from "@/project/store";
+import { projectDuration } from "@/project/queries";
 import { setTrackFlag } from "@/project/commands/tracks";
 import type { Track } from "@/project/types";
+import { TimelineCanvas } from "@/timeline/TimelineCanvas";
+import { clampScrollX, fitZoom, timeToX, zoomAt, type Viewport } from "@/timeline/viewport";
 
 const TRACK_HEIGHT = "h-11";
 
+/** Zoom pelos botões: ancorado no playhead se ele estiver visível, senão no centro. */
+function zoomBy(factor: number) {
+  const v = viewStore.getState();
+  const vp: Viewport = { pxPerSecond: v.pxPerSecond, scrollX: v.scrollX, width: v.viewportWidth };
+  const playheadX = timeToX(v.playhead, vp);
+  const anchor = playheadX >= 0 && playheadX <= vp.width ? playheadX : vp.width / 2;
+  const z = zoomAt(vp, factor, anchor);
+  const content = projectDuration(projectStore.getState().project);
+  viewStore.setState({ pxPerSecond: z.pxPerSecond, scrollX: clampScrollX(z.scrollX, content, { ...vp, ...z }) });
+}
+
+function zoomToFit() {
+  const content = projectDuration(projectStore.getState().project);
+  viewStore.setState({ pxPerSecond: fitZoom(content, viewStore.getState().viewportWidth), scrollX: 0 });
+}
+
 export function TimelinePanel() {
   const tracks = useProject((s) => s.project.tracks);
+  const scrollY = useView((s) => s.scrollY);
   const [snap, setSnap] = useState(true);
 
   // Vídeo: índice maior fica por cima na composição, então aparece no topo.
@@ -43,7 +65,7 @@ export function TimelinePanel() {
             <MousePointer2 />
           </Button>
         </Tip>
-        <Tip label="Dividir no playhead" shortcut="S">
+        <Tip label="Dividir no playhead (em breve)" shortcut="S">
           <Button variant="ghost" size="sm" aria-label="Dividir no playhead" disabled>
             <Scissors />
           </Button>
@@ -61,44 +83,46 @@ export function TimelinePanel() {
               <Magnet />
             </Button>
           </Tip>
-          <Tip label="Diminuir zoom" shortcut="−">
-            <Button variant="ghost" size="sm" aria-label="Diminuir zoom" disabled={empty}>
+          <Tip label="Diminuir zoom" shortcut="Ctrl + roda">
+            <Button variant="ghost" size="sm" aria-label="Diminuir zoom" onClick={() => zoomBy(1 / 1.5)}>
               <ZoomOut />
             </Button>
           </Tip>
-          <Tip label="Aumentar zoom" shortcut="+">
-            <Button variant="ghost" size="sm" aria-label="Aumentar zoom" disabled={empty}>
+          <Tip label="Aumentar zoom" shortcut="Ctrl + roda">
+            <Button variant="ghost" size="sm" aria-label="Aumentar zoom" onClick={() => zoomBy(1.5)}>
               <ZoomIn />
+            </Button>
+          </Tip>
+          <Tip label="Mostrar tudo">
+            <Button variant="ghost" size="sm" aria-label="Mostrar tudo" disabled={empty} onClick={zoomToFit}>
+              <Maximize2 />
             </Button>
           </Tip>
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 overflow-y-auto">
-        <div className="w-40 shrink-0 border-r border-border">
-          <div className="h-6 border-b border-border" />
-          {video.map((t) => (
-            <TrackHeader key={t.id} track={t} />
-          ))}
-          <div className="h-1 border-b border-border bg-bg-0" />
-          {audio.map((t) => (
-            <TrackHeader key={t.id} track={t} />
-          ))}
+      <div className="flex min-h-0 flex-1">
+        <div className="flex w-40 shrink-0 flex-col border-r border-border">
+          <div className="h-6 shrink-0 border-b border-border" />
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <div style={{ transform: `translateY(${-scrollY}px)` }}>
+              {video.map((t) => (
+                <TrackHeader key={t.id} track={t} />
+              ))}
+              <div className="h-1 border-b border-border bg-bg-0" />
+              {audio.map((t) => (
+                <TrackHeader key={t.id} track={t} />
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div className="relative min-w-0 flex-1 bg-bg-0">
-          <div className="h-6 border-b border-border bg-bg-1" aria-label="Régua" />
-          {video.map((t) => (
-            <div key={t.id} className={cn(TRACK_HEIGHT, "border-b border-border")} />
-          ))}
-          <div className="h-1 border-b border-border bg-bg-1" />
-          {audio.map((t) => (
-            <div key={t.id} className={cn(TRACK_HEIGHT, "border-b border-border")} />
-          ))}
+        <div className="relative flex min-w-0 flex-1">
+          <TimelineCanvas />
           {empty && (
             <div className="pointer-events-none absolute inset-x-0 top-6 bottom-0 flex items-center justify-center">
               <p className="rounded-control border border-border bg-bg-1 px-3 py-1.5 text-body text-text-2">
-                Arraste clipes da biblioteca para cá.
+                Dê dois cliques numa mídia da biblioteca para colocá-la aqui.
               </p>
             </div>
           )}

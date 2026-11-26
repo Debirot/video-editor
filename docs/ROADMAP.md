@@ -80,10 +80,23 @@ Pronto quando:
       Observação: arrastar não funciona se o app rodar como administrador (o Windows bloqueia).
 Fora do escopo: miniaturas da timeline, waveforms, proxies, conversão de VFR, bins.
 
-### T1.05 Timeline · próxima
-Canvas com régua, trilhas, clipes, playhead e zoom. Desenha só o visível, em requestAnimationFrame.
+### T1.05 Timeline · concluída
+Objetivo: canvas com régua, trilhas, clipes, playhead e zoom, desenhando só o visível.
+Arquivos: src/timeline/{viewport,draw}.ts, src/timeline/TimelineCanvas.tsx, src/app/viewStore.ts,
+src/project/commands/clips.ts, src/panels/timeline/TimelinePanel.tsx, src/panels/library/MediaLibrary.tsx,
+src/panels/preview/PreviewPanel.tsx
+Pronto quando:
+- [x] viewport.ts testado: conversões, zoom ancorado, limites, rolagem, linhas das trilhas, régua
+      (intervalo mínimo de 80 px, quadros exatos em 29,97)
+- [x] appendMediaClip testado: vídeo + áudio ligados, sem sobreposição, duração no quadro,
+      imagem 5 s, trilha travada, desfazer/refazer com os mesmos ids
+- [x] No navegador: dois cliques põem clipes na timeline; régua move o playhead e o timecode;
+      quadro a quadro; Ctrl + roda, botões de zoom e "Mostrar tudo"; rolagem; desfazer
+- [ ] No Windows: conferir fluidez do zoom e da rolagem com vários clipes
+Fora do escopo: arrastar e mover clipes, seleção, cortar, dividir, encaixe, atalhos (T1.06);
+miniaturas ao longo do clipe e waveforms.
 
-### T1.06 Edição
+### T1.06 Edição · próxima
 Arrastar da biblioteca, mover entre trilhas, aparar bordas, snap (8 px), seleção múltipla,
 copiar e colar, dividir (splitClip, trimClip, moveClips com testes), apagar. Atalhos em shortcuts.ts.
 

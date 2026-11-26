@@ -12,6 +12,8 @@ import { runtimeStore, useRuntime, type MediaRuntime } from "@/app/mediaRuntime"
 import { cn } from "@/lib/cn";
 import { fpsToNumber } from "@/lib/time";
 import type { Media } from "@/project/types";
+import { projectStore } from "@/project/store";
+import { appendMediaClip } from "@/project/commands/clips";
 import { EmptyState } from "./LibraryPanel";
 
 /** Duração curta para o canto do pôster: "0:12", "1:05:30". Só exibição. */
@@ -94,7 +96,14 @@ function MediaItem({ media }: { media: Media }) {
   const vfr = media.probe.variableFrameRate === true;
 
   return (
-    <li title={`${name}\n${details(media)}`} className="group flex min-w-0 flex-col gap-1">
+    <li
+      title={`${name}\n${details(media)}\nDois cliques para colocar na timeline`}
+      className="group flex min-w-0 cursor-default flex-col gap-1"
+      onDoubleClick={() => {
+        const { project, applyCommand } = projectStore.getState();
+        applyCommand("Adicionar à timeline", appendMediaClip(media, project.settings.fps));
+      }}
+    >
       <div
         className={cn(
           "relative flex aspect-video items-center justify-center overflow-hidden rounded-control border bg-bg-0",

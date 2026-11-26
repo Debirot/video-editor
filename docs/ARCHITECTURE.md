@@ -92,6 +92,18 @@ diálogo ou drop → importPaths (src/app/importMedia.ts)
 O que depende da máquina (pôster pronto, decodificável) fica em `src/app/mediaRuntime.ts`,
 indexado pelo hash, e não vai para o project.json.
 
+### Timeline (T1.05)
+- `src/timeline/viewport.ts`: geometria pura (tempo ↔ px, zoom ancorado, rolagem, linhas
+  das trilhas, marcas da régua), testada.
+- `src/timeline/draw.ts`: desenha régua, trilhas, clipes (com pôster e nome) e playhead,
+  só o visível, com as cores lidas dos tokens.
+- `src/timeline/TimelineCanvas.tsx`: o React só monta o canvas; mudanças no projeto, no
+  `viewStore` ou nos pôsteres agendam um redesenho por requestAnimationFrame.
+- `src/app/viewStore.ts`: playhead, zoom (px/s), rolagem e largura visível. Fora do projeto
+  e do histórico de desfazer.
+- Os cabeçalhos de trilha são DOM (TimelinePanel) com as mesmas alturas de `trackLayout`
+  (régua 24, trilha 44, faixa 4) e acompanham a rolagem vertical por `translateY`.
+
 ## Pipeline de vídeo (validado na prova técnica)
 
 ```

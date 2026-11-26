@@ -96,6 +96,21 @@ Componentes de painel só montam peças daqui. Se falta uma peça, ela é criada
 - **Diálogo**: entra com a exportação (T1.10).
 - **Arrastar arquivos**: a janela inteira mostra "Solte para importar" com borda tracejada `accent`.
 
+## Timeline
+
+- Régua de 24 px; trilhas de 44 px; faixa de 4 px entre vídeo e áudio. V2 acima de V1.
+- Clipe: retângulo com cantos de 4 px na cor do tipo (`clip-video`, `clip-audio`, `clip-image`,
+  `clip-text`), contorno `text-1` a 25%, pôster 16:9 no começo (vídeo) e nome em 12 px.
+  O nome fica preso à borda esquerda quando o começo do clipe sai da tela.
+  Trilha oculta ou muda: clipes a 35% de opacidade.
+- Playhead: linha de 1 px em `accent` com alça pentagonal na régua.
+- Régua: marcas principais com pelo menos 80 px entre si (quadros, segundos ou minutos,
+  conforme o zoom), marcas menores entre elas; rótulos "m:ss" ou "m:ss:ff".
+- Mouse: clicar ou arrastar na régua move o playhead (no início do quadro);
+  roda rola na horizontal (na vertical só se as trilhas não couberem, ou com Shift invertido);
+  Ctrl + roda dá zoom no cursor. Botões: −, +, "Mostrar tudo".
+- Até T1.06, dois cliques numa mídia da biblioteca a colocam no fim da V1 (e o áudio na A1).
+
 Botões sem função ainda aparecem desabilitados com tooltip "(em breve)".
 
 ## Atalhos (src/app/shortcuts.ts, T1.06)
