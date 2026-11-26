@@ -71,3 +71,9 @@ As decisões de stack do plano técnico (seção 2) valem como D-001 a D-006.
 - Decisão: manter Tauri 2 + WebCodecs + WebGL2 + Mediabunny e seguir para T1.02.
 - Descartadas: plano B (exportador via FFmpeg) fica para a Fase 3, como previsto.
 - Consequências: falta medir num notebook com GPU integrada antes do Portão 1. O descarte do primeiro quadro no modo tempo real vem da tela de teste (relógio começa antes do primeiro quadro) e não existirá no preview de T1.07.
+
+### D-012 · 2026-11-26 · Dependências da interface (T1.02)
+- Contexto: esqueleto da interface com painéis redimensionáveis, tooltips e a fonte Inter.
+- Decisão: `react-resizable-panels` 4.x (previsto no plano; a v4 usa `Group`/`Panel`/`Separator` e tamanhos em px), `@radix-ui/react-tooltip` (base do Tooltip do shadcn/ui) e `@fontsource-variable/inter` (fonte empacotada, sem rede).
+- Descartadas: painéis com CSS próprio (arrasto, teclado e acessibilidade dariam trabalho), `title` nativo no lugar de tooltip (atraso fixo, sem atalho), Inter do Google Fonts (exige rede).
+- Consequências: layout salvo no localStorage do WebView; se a estrutura de painéis mudar, trocar os ids `layout-*` para não restaurar um layout incompatível.

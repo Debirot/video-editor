@@ -11,7 +11,15 @@
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-O usuário redimensiona e recolhe painéis, mas não os reorganiza.
+O usuário redimensiona e recolhe painéis, mas não os reorganiza. Implementado em
+`src/app/Layout.tsx` com `react-resizable-panels`; os tamanhos ficam salvos no
+localStorage (`layout-horizontal`, `layout-vertical`).
+
+- Biblioteca: clicar na aba ativa da coluna de ícones recolhe; clicar em qualquer aba abre.
+- Inspetor: recolhe e abre pelo botão na barra superior.
+- Timeline: não recolhe (mínimo de 140 px, máximo de 70% da altura).
+- Arrastar um painel lateral abaixo do mínimo também recolhe.
+- Abaixo de 1400 px de largura os painéis laterais começam com 240 px (300 px acima).
 
 - **Barra superior.** Nome do projeto editável, desfazer/refazer, indicador de tarefas,
   configurações e Exportar (o único botão em cor de destaque).
@@ -69,12 +77,20 @@ O canvas da timeline lê os mesmos tokens com `getComputedStyle(document.documen
 | Componente | Variantes | Desde |
 |---|---|---|
 | Button | default, accent, ghost, danger · sm, md, icon | T1.01 |
+| ResizableGroup, ResizablePanel, ResizableHandle | handle `direction` horizontal ou vertical | T1.02 |
+| TooltipProvider, Tooltip, TooltipContent, Tip | `Tip` = rótulo + atalho; funciona em botão desabilitado | T1.02 |
 
 Componentes de painel só montam peças daqui. Se falta uma peça, ela é criada aqui primeiro.
 
 ## Padrões de tela
 
-Entram em T1.02: seção do inspetor, item de biblioteca e diálogo.
+- **Seção do inspetor** (`src/panels/inspector/InspectorSection.tsx`): título em caixa alta
+  com seta, conteúdo recolhível; dentro, `InspectorRow` com rótulo de 96 px e valor.
+- **Estado vazio** (`EmptyState` em `src/panels/library/LibraryPanel.tsx`): ícone de 32 px
+  com traço 1,25 e uma frase que diz o próximo passo.
+- **Item de biblioteca** e **diálogo**: entram com a importação (T1.04) e a exportação (T1.10).
+
+Botões sem função ainda aparecem desabilitados com tooltip "(em breve)".
 
 ## Atalhos (src/app/shortcuts.ts, T1.06)
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clipAt, findClip, projectDuration, sourceTimeAt, trackProblems } from "./queries";
+import { aspectLabel, clipAt, findClip, projectDuration, sourceTimeAt, trackProblems } from "./queries";
 import { makeClip, makeSmallProject } from "./fixtures";
 
 describe("clipAt", () => {
@@ -47,5 +47,18 @@ describe("projectDuration / trackProblems", () => {
     track.clips[1]!.start = 1_500_000;
     track.clips[2]!.duration = 0.5;
     expect(trackProblems(track)).toEqual(["c_2: sobrepõe o clipe anterior", "c_3: tempo não inteiro"]);
+  });
+});
+
+describe("aspectLabel", () => {
+  it.each([
+    [1920, 1080, "16:9"],
+    [1080, 1920, "9:16"],
+    [1080, 1080, "1:1"],
+    [1080, 1350, "4:5"],
+    [3840, 2160, "16:9"],
+    [0, 1080, "—"],
+  ])("%i×%i → %s", (w, h, label) => {
+    expect(aspectLabel(w, h)).toBe(label);
   });
 });

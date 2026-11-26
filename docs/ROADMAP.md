@@ -37,16 +37,19 @@ Pronto quando:
 Fora do escopo: áudio, várias trilhas, UI definitiva.
 Se algo falhar: a stack é revista antes de seguir (plano, seção 11).
 
-### T1.02 Esqueleto da interface · próxima
+### T1.02 Esqueleto da interface · concluída
 Objetivo: as cinco regiões com painéis redimensionáveis, tokens, componentes base e barra superior.
-Arquivos: src/app/App.tsx, src/app/Layout.tsx, src/panels/TopBar.tsx, src/panels/*/ (placeholders),
-src/components/ui/{tabs,tooltip,slider}.tsx, docs/UI_GUIDE.md
+Arquivos: src/app/{App,Layout}.tsx, src/panels/TopBar.tsx, src/panels/{library,preview,inspector,timeline}/,
+src/components/ui/{resizable,tooltip}.tsx, src/project/commands/project.ts, src/project/queries.ts (aspectLabel),
+src/main.tsx, src/styles/tokens.css, docs/UI_GUIDE.md
 Pronto quando:
-- Painéis redimensionam e recolhem; largura mínima 1100 px respeitada
-- Nenhuma cor fixa fora de tokens.css (grep por `#` em src/panels e src/components dá vazio)
-- Estados vazios com o texto do próximo passo
-- Fonte Inter empacotada no app (sem rede)
-Fora do escopo: conteúdo real dos painéis.
+- [x] Painéis redimensionam e recolhem; largura mínima 1100 px respeitada; tamanhos salvos entre aberturas
+- [x] Nenhuma cor fixa fora de tokens.css (grep por hex em src/panels, src/components e src/app dá vazio)
+- [x] Estados vazios com o texto do próximo passo
+- [x] Fonte Inter empacotada no app (sem rede)
+- [x] Renomear o projeto e ocultar/travar trilhas passam por applyCommand e desfazem
+- [x] Prova técnica continua acessível em `?prova`
+Fora do escopo: atalhos de teclado (T1.06), inspetor como gaveta abaixo de 1400 px.
 
 ### T1.03 Modelo e histórico · concluída
 Objetivo: types.ts, store, applyCommand, desfazer e refazer, time.ts, todos com testes.
@@ -60,7 +63,7 @@ Pronto quando:
 - [x] normalizeProject preenche padrões, ordena clipes, recusa tempos não inteiros e schema mais novo
 - [x] Partes não alteradas do projeto mantêm a referência (seletores não re-renderizam)
 
-### T1.04 Importação
+### T1.04 Importação · próxima
 Objetivo: diálogo e arrastar arquivos, ffprobe no Rust, biblioteca com pôster.
 Arquivos: src-tauri/src/{media,ffmpeg,jobs}.rs, src-tauri/binaries/, src/project/commands/media.ts,
 src/panels/library/MediaLibrary.tsx, src/lib/ipc.ts

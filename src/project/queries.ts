@@ -71,3 +71,14 @@ export function trackProblems(track: Track): string[] {
   }
   return problems;
 }
+
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b);
+}
+
+/** Proporção legível: 1920×1080 → "16:9", 1080×1920 → "9:16", 2560×1080 → "64:27". */
+export function aspectLabel(width: number, height: number): string {
+  if (width <= 0 || height <= 0) return "—";
+  const d = gcd(Math.round(width), Math.round(height));
+  return `${Math.round(width) / d}:${Math.round(height) / d}`;
+}

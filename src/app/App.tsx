@@ -1,9 +1,16 @@
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Layout } from "./Layout";
 import { ProofPanel } from "./proof/ProofPanel";
 
 /**
- * Fase 1, antes do Portão 0: o app abre direto na prova técnica.
- * O layout de cinco regiões (T1.02) entra depois que o pipeline for validado.
+ * A prova técnica (T1.01) continua acessível em "?prova" até o preview real (T1.07).
  */
+const showProof = new URLSearchParams(window.location.search).has("prova");
+
 export function App() {
-  return <ProofPanel />;
+  return (
+    <TooltipProvider delayDuration={400} skipDelayDuration={200}>
+      {showProof ? <ProofPanel /> : <Layout />}
+    </TooltipProvider>
+  );
 }
