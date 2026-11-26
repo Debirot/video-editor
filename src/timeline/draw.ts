@@ -107,6 +107,33 @@ function drawClip(input: DrawInput, track: Track, clip: Clip, rowY: number, rowH
   ctx.fill();
   ctx.clip();
 
+  // Fades de áudio: rampa com a área acima escurecida (volume subindo no começo, descendo no fim).
+  if (clip.audio && (clip.audio.fadeIn > 0 || clip.audio.fadeOut > 0)) {
+    const pxPerUs = input.vp.pxPerSecond / 1_000_000;
+    ctx.save();
+    ctx.fillStyle = p.bg0;
+    ctx.globalAlpha = 0.45;
+    if (clip.audio.fadeIn > 0) {
+      const fx = x0 + clip.audio.fadeIn * pxPerUs;
+      ctx.beginPath();
+      ctx.moveTo(x0, y);
+      ctx.lineTo(fx, y);
+      ctx.lineTo(x0, y + h);
+      ctx.closePath();
+      ctx.fill();
+    }
+    if (clip.audio.fadeOut > 0) {
+      const fx = x1 - clip.audio.fadeOut * pxPerUs;
+      ctx.beginPath();
+      ctx.moveTo(x1, y);
+      ctx.lineTo(fx, y);
+      ctx.lineTo(x1, y + h);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   let textX = x + 6;
   if (track.kind === "video" && media && w > 24) {
     const poster = input.posterFor(media);

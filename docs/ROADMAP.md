@@ -208,14 +208,33 @@ Fora do escopo: presets (YouTube, Reels…) e exportador via FFmpeg (Fase 3), pa
 ---
 
 ## Fase 2: edição completa
-1. Inspetor com seções por tipo de seleção.
-2. Transformação (posição, escala, rotação, recorte, opacidade) com alças no preview.
+
+Começou com o Portão 1 ainda com itens a medir no Windows (sincronia de 2 min, exportação com AAC
+e H.264 por hardware no VLC e no player do Windows, GPU integrada). Esses itens não dependem da Fase 2
+e continuam na lista acima.
+
+### T2.01 Inspetor por seleção, seções Clipe e Áudio · concluída
+Objetivo: o inspetor mostra o que vale para a seleção; editar início, duração, volume e fades do clipe.
+Arquivos: src/project/commands/clipProps.ts, src/components/ui/number-field.tsx,
+src/panels/inspector/{InspectorPanel,ClipInspector}.tsx, src/timeline/draw.ts
+Pronto quando:
+- [x] setClipAudio testado: limites de volume e fades, fade editado empurra o outro, ignora vídeo e trilha travada
+- [x] Campo numérico: digitar (Enter/Esc), setas (Shift ×10), arrastar o rótulo (um passo de desfazer)
+- [x] No navegador: inspetor do clipe com o ligado (V1 + A1); fades e volume editados aparecem na timeline
+      (rampas) e no histórico; início e duração por timecode; 5× Ctrl+Z volta tudo; vários clipes → resumo
+Fora do escopo: transformação (T2.02), editar configurações do projeto.
+
+### T2.02 Transformação · próxima
+Posição, escala, rotação, recorte e opacidade no compositor (preview e exportação), seção no inspetor e
+alças no preview.
+
+### Demais tarefas da Fase 2
 3. Imagens e logotipos, depois formas.
 4. Textos e títulos, com fontes do sistema.
 5. Ajustes de cor, desfoque e nitidez.
 6. Transições: dissolve, fade para preto, deslizar, zoom.
 7. Keyframes: motor de interpolação primeiro (com testes), depois a interface no inspetor.
-8. Volume, fades de áudio, velocidade e congelar quadro.
+8. Velocidade e congelar quadro (volume e fades já entraram em T2.01).
 9. Marcadores.
 10. Autosave, versões, bins, mídias usadas e religar arquivos ausentes.
 11. Waveforms (antecipadas da Fase 3).

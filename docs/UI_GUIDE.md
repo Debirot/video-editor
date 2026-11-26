@@ -93,6 +93,12 @@ Componentes de painel só montam peças daqui. Se falta uma peça, ela é criada
 
 - **Seção do inspetor** (`src/panels/inspector/InspectorSection.tsx`): título em caixa alta
   com seta, conteúdo recolhível; dentro, `InspectorRow` com rótulo de 96 px e valor.
+- **Campo numérico** (`src/components/ui/number-field.tsx`): rótulo de 96 px à esquerda (cursor ↔,
+  arrastar para os lados ajusta; Shift = ×10), valor com unidade à direita ("−5,0 dB", "1,50 s",
+  timecode). Enter confirma, Esc desiste, ↑/↓ ajustam. Arrastar o rótulo é um passo de desfazer.
+  Vírgula decimal e menos tipográfico (−).
+- **Inspetor por seleção**: nada → Projeto; um clipe (com o ligado) → nome da mídia, seções Clipe
+  (início, duração, ponto na mídia, trilhas) e Áudio (volume, fades); vários → "N clipes selecionados".
 - **Estado vazio** (`EmptyState` em `src/panels/library/LibraryPanel.tsx`): ícone de 32 px
   com traço 1,25 e uma frase que diz o próximo passo.
 - **Item de biblioteca** (`MediaItem` em `src/panels/library/MediaLibrary.tsx`): pôster 16:9
@@ -113,6 +119,7 @@ Componentes de painel só montam peças daqui. Se falta uma peça, ela é criada
   `clip-text`), contorno `text-1` a 25%, pôster 16:9 no começo (vídeo) e nome em 12 px.
   O nome fica preso à borda esquerda quando o começo do clipe sai da tela.
   Trilha oculta ou muda: clipes a 35% de opacidade.
+  Fades de áudio: triângulos escurecidos (`bg-0` a 45%) nos cantos superiores; a borda clara é o envelope.
 - Playhead: linha de 1 px em `accent` com alça pentagonal na régua.
 - Cabeçalho de trilha de áudio: solo (fone, `accent` quando ligado), mudo (`danger`), trava e,
   embaixo, volume de −60 dB (mudo) a +12 dB; dois cliques voltam a 0 dB; arrastar é um passo de desfazer.

@@ -1,19 +1,58 @@
 /**
- * Painel direito. Mostra só o que vale para a seleção atual.
- * Sem seleção (único caso até T1.06), mostra as configurações do projeto.
+ * Painel direito. Mostra só o que vale para a seleção atual:
+ * nada selecionado → projeto; um clipe (com o ligado) → ClipInspector; vários → resumo.
  */
-import { MousePointerClick } from "lucide-react";
+import { Layers, MousePointerClick } from "lucide-react";
 import { useProject } from "@/app/useProject";
+import { useSelection } from "@/app/selectionStore";
 import { fpsToNumber } from "@/lib/time";
 import { aspectLabel } from "@/project/queries";
+import type { Clip, Project, Track } from "@/project/types";
+import { ClipInspector } from "./ClipInspector";
 import { InspectorRow, InspectorSection } from "./InspectorSection";
 
+/** Clipes selecionados agrupados por linkGroup (vídeo + áudio do mesmo arquivo = 1 grupo). */
+function selectedGroups(project: Project, ids: string[]): { clip: Clip; track: Track }[][] {
+  const wanted = new Set(ids);
+  const groups = new Map<string, { clip: Clip; track: Track }[]>();
+  for (const track of project.tracks) {
+    for (const clip of track.clips) {
+      if (!wanted.has(clip.id)) continue;
+      const key = clip.linkGroup ?? clip.id;
+      groups.set(key, [...(groups.get(key) ?? []), { clip, track }]);
+    }
+  }
+  return [...groups.values()];
+}
+
 export function InspectorPanel() {
+  const project = useProject((s) => s.project);
+  const ids = useSelection((s) => s.clipIds);
+  const groups = selectedGroups(project, ids);
+
+  return (
+    <aside aria-label="Inspetor" className="flex h-full flex-col overflow-y-auto bg-bg-1">
+      {groups.length === 1 ? (
+        <ClipInspector project={project} clips={groups[0]!} />
+      ) : groups.length > 1 ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-8 text-center">
+          <Layers className="size-6 text-text-2" strokeWidth={1.25} />
+          <p className="text-body text-text-1">{groups.length} clipes selecionados</p>
+          <p className="text-label text-text-2">Selecione um só para editar as propriedades dele.</p>
+        </div>
+      ) : (
+        <ProjectInspector />
+      )}
+    </aside>
+  );
+}
+
+function ProjectInspector() {
   const settings = useProject((s) => s.project.settings);
   const fps = fpsToNumber(settings.fps);
 
   return (
-    <aside aria-label="Inspetor" className="flex h-full flex-col overflow-y-auto bg-bg-1">
+    <>
       <header className="flex h-10 shrink-0 items-center px-3">
         <h2 className="text-title font-semibold">Projeto</h2>
       </header>
@@ -46,6 +85,6 @@ export function InspectorPanel() {
         <MousePointerClick className="size-6 text-text-2" strokeWidth={1.25} />
         <p className="text-body text-text-2">Selecione um clipe na timeline para editar as propriedades dele.</p>
       </div>
-    </aside>
+    </>
   );
 }
