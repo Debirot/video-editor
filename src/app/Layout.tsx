@@ -16,6 +16,8 @@ import { TimelinePanel } from "@/panels/timeline/TimelinePanel";
 import { isTauri, onFileDrop } from "@/lib/ipc";
 import { importPaths, listenForJobs } from "./importMedia";
 import { runtimeStore, useRuntime } from "./mediaRuntime";
+import { useMediaDrag } from "./mediaDrag";
+import { fileName } from "./importMedia";
 import { actionFor, isTypingTarget } from "./shortcuts";
 import { runAction } from "./editActions";
 
@@ -33,6 +35,7 @@ export function Layout() {
   const horizontal = useDefaultLayout({ id: "layout-horizontal" });
   const vertical = useDefaultLayout({ id: "layout-vertical" });
   const dragging = useRuntime((s) => s.dragging);
+  const mediaDrag = useMediaDrag((s) => s);
 
   // Fila do Rust (pôsteres) e arquivos soltos na janela. Só existem no app.
   useEffect(() => {
@@ -93,6 +96,14 @@ export function Layout() {
             <FileDown className="size-8 text-accent" strokeWidth={1.5} />
             <p className="text-title font-semibold">Solte para importar</p>
           </div>
+        </div>
+      )}
+      {mediaDrag.media && (
+        <div
+          className="pointer-events-none fixed z-50 max-w-60 truncate rounded-control border border-accent bg-bg-2 px-2 py-1 text-label text-text-1 shadow-lg"
+          style={{ left: mediaDrag.x + 12, top: mediaDrag.y + 12, opacity: mediaDrag.overTarget ? 1 : 0.7 }}
+        >
+          {fileName(mediaDrag.media.path)}
         </div>
       )}
       <TopBar inspectorOpen={inspectorOpen} onToggleInspector={toggleInspector} />

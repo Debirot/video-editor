@@ -22,6 +22,7 @@ import { useProject } from "@/app/useProject";
 import { useView, viewStore } from "@/app/viewStore";
 import { useSelection } from "@/app/selectionStore";
 import { splitAtPlayhead, zoomBy, zoomToFit } from "@/app/editActions";
+import { useMediaDrag } from "@/app/mediaDrag";
 import { cn } from "@/lib/cn";
 import { projectStore } from "@/project/store";
 import { setTrackFlag } from "@/project/commands/tracks";
@@ -35,6 +36,7 @@ export function TimelinePanel() {
   const scrollY = useView((s) => s.scrollY);
   const snap = useView((s) => s.snap);
   const hasSelection = useSelection((s) => s.clipIds.length > 0);
+  const draggingMedia = useMediaDrag((s) => s.media !== null);
 
   // Vídeo: índice maior fica por cima na composição, então aparece no topo.
   const video = tracks.filter((t) => t.kind === "video").reverse();
@@ -103,10 +105,10 @@ export function TimelinePanel() {
 
         <div className="relative flex min-w-0 flex-1">
           <TimelineCanvas />
-          {empty && (
+          {empty && !draggingMedia && (
             <div className="pointer-events-none absolute inset-x-0 top-6 bottom-0 flex items-center justify-center">
               <p className="rounded-control border border-border bg-bg-1 px-3 py-1.5 text-body text-text-2">
-                Dê dois cliques numa mídia da biblioteca para colocá-la aqui.
+                Arraste mídias da biblioteca para cá (ou dê dois cliques nelas).
               </p>
             </div>
           )}

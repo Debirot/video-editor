@@ -134,4 +134,14 @@ Botões sem função ainda aparecem desabilitados com tooltip "(em breve)".
 | Ctrl + S / Ctrl + E | Salvar / exportar | T1.09 / T1.10 |
 
 Seleção: clique num clipe seleciona ele e o clipe ligado (vídeo + áudio do mesmo arquivo);
-Ctrl + clique soma ou tira; clique em área vazia limpa. Selecionado = contorno de 2 px em `accent`.
+Ctrl + clique soma ou tira; clique em área vazia limpa; arrastar na área vazia desenha um
+retângulo (`accent` a 12% com contorno) que seleciona o que tocar. Selecionado = contorno de 2 px em `accent`.
+
+Mouse na timeline (T1.06b):
+- Cursor `grab` sobre o corpo do clipe, `grabbing` ao arrastar, `ew-resize` a até 6 px das bordas.
+- Arrastar o corpo move a seleção; subir ou descer troca de trilha (só entre trilhas do mesmo tipo).
+- Arrastar a borda apara (o ligado junto), sem passar do vizinho nem do começo/fim da mídia.
+- Encaixe (N liga/desliga) a 8 px de bordas de clipes, playhead e zero.
+- Arrastar da biblioteca: etiqueta com o nome segue o cursor; sobre a timeline, contorno tracejado
+  `accent` mostra onde vídeo e áudio vão cair.
+- Esc durante qualquer arrasto cancela.

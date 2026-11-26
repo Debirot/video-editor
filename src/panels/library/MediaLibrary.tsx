@@ -14,6 +14,7 @@ import { fpsToNumber } from "@/lib/time";
 import type { Media } from "@/project/types";
 import { projectStore } from "@/project/store";
 import { appendMediaClip } from "@/project/commands/clips";
+import { startMediaDrag } from "@/app/mediaDrag";
 import { EmptyState } from "./LibraryPanel";
 
 /** Duração curta para o canto do pôster: "0:12", "1:05:30". Só exibição. */
@@ -97,8 +98,9 @@ function MediaItem({ media }: { media: Media }) {
 
   return (
     <li
-      title={`${name}\n${details(media)}\nDois cliques para colocar na timeline`}
-      className="group flex min-w-0 cursor-default flex-col gap-1"
+      title={`${name}\n${details(media)}\nArraste para a timeline ou dê dois cliques`}
+      className="group flex min-w-0 cursor-grab touch-none flex-col gap-1 select-none"
+      onPointerDown={(e) => startMediaDrag(e, media)}
       onDoubleClick={() => {
         const { project, applyCommand } = projectStore.getState();
         applyCommand("Adicionar à timeline", appendMediaClip(media, project.settings.fps));

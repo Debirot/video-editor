@@ -4,6 +4,7 @@
  * Chamado em requestAnimationFrame por TimelineCanvas.tsx quando algo muda.
  */
 import type { Rational, Us } from "@/lib/time";
+import type { Overlay } from "./gestures";
 import type { Clip, Media, Track } from "@/project/types";
 import { RULER_HEIGHT, SEPARATOR_HEIGHT, rulerTicks, timeToX, type TrackLayout, type Viewport } from "./viewport";
 
@@ -60,6 +61,7 @@ export interface DrawInput {
   /** Pôster pronto da mídia, ou null. */
   posterFor: (media: Media) => CanvasImageSource | null;
   palette: Palette;
+  overlay: Overlay;
 }
 
 const CLIP_PAD_Y = 3;
@@ -205,7 +207,38 @@ export function drawTimeline(input: DrawInput): void {
   }
   ctx.fillStyle = p.bg1;
   ctx.fillRect(0, layout.separatorY, width, SEPARATOR_HEIGHT);
+
+  // Prévia de mídia arrastada da biblioteca: contorno tracejado onde vai cair.
+  for (const ghost of input.overlay.ghosts) {
+    const row = layout.rows.find((r) => r.trackId === ghost.trackId);
+    if (!row) continue;
+    const x0 = timeToX(ghost.start, input.vp);
+    const x1 = timeToX(ghost.start + ghost.duration, input.vp);
+    ctx.save();
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = p.accent;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.9;
+    ctx.strokeRect(x0 + 1, row.y + CLIP_PAD_Y + 1, Math.max(2, x1 - x0 - 2), row.height - 1 - CLIP_PAD_Y * 2 - 2);
+    ctx.restore();
+  }
   ctx.restore();
+
+  // Retângulo de seleção.
+  const m = input.overlay.marquee;
+  if (m) {
+    ctx.save();
+    ctx.fillStyle = p.accent;
+    ctx.globalAlpha = 0.12;
+    const [x, y] = [Math.min(m.x0, m.x1), Math.max(RULER_HEIGHT, Math.min(m.y0, m.y1))];
+    const [w, h] = [Math.abs(m.x1 - m.x0), Math.max(m.y0, m.y1) - y];
+    ctx.fillRect(x, y, w, h);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = p.accent;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, Math.round(w), Math.round(h));
+    ctx.restore();
+  }
 
   drawRuler(input);
   drawPlayhead(input);

@@ -305,3 +305,126 @@ describe("withLinked / nextCut", () => {
     expect(clipAt(track(p), 3_000_000)?.id).toBe("c_2");
   });
 });
+
+// ─── T1.06b ──────────────────────────────────────────────────────────────────
+import { insertMediaAt, moveClips, trimBounds, trimClips } from "./clips";
+
+/** Projeto com V1, V2, A1 (cria V2 vazia acima de V1). */
+function withV2(s: Snapshot): Snapshot {
+  const p = structuredClone(s.project);
+  p.tracks.splice(1, 0, { ...structuredClone(p.tracks[0]!), id: "t_v2", name: "V2", clips: [], transitions: [] });
+  return { project: p, history: emptyHistory() };
+}
+
+describe("moveClips", () => {
+  it("move no tempo sobrescrevendo o destino", () => {
+    const s = execute(small(), "Mover", moveClips(["c_1"], 5_000_000, null));
+    // c_1 (0–2 s) vai para 5–7 s: corta o fim de c_2? não, c_2 vai até 5 s; corta o começo de c_3 (6–8 s).
+    expect(spans(track(s.project)).map((x) => [x[0], x[1], x[2]])).toEqual([
+      ["c_2", 2_000_000, 3_000_000],
+      ["c_1", 5_000_000, 2_000_000],
+      ["c_3", 7_000_000, 1_000_000],
+    ]);
+    expect(track(s.project).clips[2]!.sourceIn).toBe(2_000_000); // speed 2: 1 s de timeline = 2 s de fonte
+    expect(valid(s.project)).toBe(true);
+  });
+
+  it("move entre trilhas de vídeo; o áudio ligado só anda no tempo", () => {
+    const s0 = withV2(linkedProject());
+    const s = execute(s0, "Mover", moveClips(["c_2", "c_a"], 1_000_000, { kind: "video", by: 1 }));
+    expect(track(s.project, "t_v2").clips.map((c) => [c.id, c.start])).toEqual([["c_2", 3_000_000]]);
+    expect(track(s.project).clips.map((c) => c.id)).toEqual(["c_1", "c_3"]);
+    expect(track(s.project, "t_a1").clips.map((c) => [c.id, c.start])).toEqual([["c_a", 3_000_000]]);
+    expect(undo(s).project).toEqual(s0.project);
+  });
+
+  it("não move para antes do zero, para trilha inexistente ou travada", () => {
+    const s0 = withV2(small());
+    expect(execute(s0, "Mover", moveClips(["c_1"], -1, null))).toBe(s0);
+    expect(execute(s0, "Mover", moveClips(["c_1"], 0, { kind: "video", by: 5 }))).toBe(s0);
+    const locked = execute(s0, "travar", (d) => void (d.tracks.find((t) => t.id === "t_v2")!.locked = true));
+    expect(execute(locked, "Mover", moveClips(["c_1"], 0, { kind: "video", by: 1 }))).toBe(locked);
+  });
+
+  it("mover vários mantém a distância entre eles e não se sobrescrevem", () => {
+    const s = execute(small(), "Mover", moveClips(["c_1", "c_2"], 10_000_000, null));
+    expect(spans(track(s.project)).map((x) => [x[0], x[1]])).toEqual([
+      ["c_3", 6_000_000],
+      ["c_1", 10_000_000],
+      ["c_2", 12_000_000],
+    ]);
+  });
+
+  it("deslocamento zero sem trocar de trilha não cria entrada", () => {
+    const s0 = small();
+    expect(execute(s0, "Mover", moveClips(["c_1"], 0, null))).toBe(s0);
+  });
+});
+
+describe("trimBounds / trimClips", () => {
+  const frame = frameToUs(1, FPS30);
+
+  it("fim: entre 1 quadro e o próximo clipe (ou o fim da mídia)", () => {
+    const p = makeSmallProject(); // mídia de 60 s
+    expect(trimBounds(p, ["c_1"], "end", FPS30)).toEqual([frame, 2_000_000]); // c_2 encostado
+    expect(trimBounds(p, ["c_2"], "end", FPS30)).toEqual([2_000_000 + frame, 6_000_000]);
+    // c_3: speed 2, sourceIn 0 → mídia acaba em 6 s + 60/2 s; não há próximo.
+    expect(trimBounds(p, ["c_3"], "end", FPS30)).toEqual([6_000_000 + frame, 36_000_000]);
+  });
+
+  it("início: depois do anterior e sem passar do começo da mídia", () => {
+    const p = makeSmallProject();
+    // c_2 tem sourceIn 10 s: poderia ir até -8 s, mas o c_1 termina em 2 s.
+    expect(trimBounds(p, ["c_2"], "start", FPS30)).toEqual([2_000_000, 5_000_000 - frame]);
+    // c_3 começa em 6 s com sourceIn 0: não dá para puxar o início para trás.
+    expect(trimBounds(p, ["c_3"], "start", FPS30)).toEqual([6_000_000, 8_000_000 - frame]);
+  });
+
+  it("aparar o início move a fonte junto; o fim só a duração", () => {
+    let s = execute(small(), "Aparar", trimClips(["c_2"], "start", 3_000_000));
+    expect(spans(track(s.project))[1]).toEqual(["c_2", 3_000_000, 2_000_000, 11_000_000]);
+    s = execute(s, "Aparar", trimClips(["c_2"], "end", 5_500_000));
+    expect(spans(track(s.project))[1]).toEqual(["c_2", 3_000_000, 2_500_000, 11_000_000]);
+    expect(valid(s.project)).toBe(true);
+  });
+
+  it("clipes ligados aparam juntos, com o limite mais apertado", () => {
+    const s0 = linkedProject();
+    const b = trimBounds(s0.project, ["c_2", "c_a"], "end", FPS30)!;
+    expect(b[1]).toBe(6_000_000); // c_3 em V1 limita; A1 está livre
+    const s = execute(s0, "Aparar", trimClips(["c_2", "c_a"], "end", 4_000_000));
+    expect(track(s.project).clips[1]!.duration).toBe(2_000_000);
+    expect(track(s.project, "t_a1").clips[0]!.duration).toBe(2_000_000);
+    expect(track(s.project, "t_a1").clips[0]!.audio!.fadeOut).toBe(400_000);
+  });
+});
+
+describe("insertMediaAt", () => {
+  it("solta no ponto e na trilha escolhida, sobrescrevendo", () => {
+    const s0 = withV2(start());
+    const s = execute(s0, "Inserir", insertMediaAt(withAudio, FPS30, 3_000_000, "t_v2"));
+    expect(track(s.project, "t_v2").clips.map((c) => [c.start, c.duration])).toEqual([[3_000_000, 10_000_000]]);
+    // O áudio vai para a primeira trilha de áudio livre (A1), ligado ao vídeo.
+    const a = a1(s.project).clips[0]!;
+    expect([a.start, a.linkGroup]).toEqual([3_000_000, track(s.project, "t_v2").clips[0]!.linkGroup]);
+  });
+
+  it("soltar vídeo numa trilha de áudio põe o áudio ali e o vídeo na V1", () => {
+    const s0 = start();
+    const a2 = s0.project.tracks.find((t) => t.name === "A2")!.id;
+    const s = execute(s0, "Inserir", insertMediaAt(withAudio, FPS30, 0, a2));
+    expect(track(s.project, a2).clips).toHaveLength(1);
+    expect(v1(s.project).clips).toHaveLength(1);
+  });
+
+  it("sobrescreve o meio de um clipe existente", () => {
+    const s0 = append(start(), silent); // V1: 0–4 s
+    const shortClip = media({ id: "m_c", kind: "video", probe: { duration: 1_000_000 } });
+    const s = execute(s0, "Inserir", insertMediaAt(shortClip, FPS30, 1_000_000, null));
+    expect(v1(s.project).clips.map((c) => [c.mediaId, c.start, c.duration])).toEqual([
+      ["m_s", 0, 1_000_000],
+      ["m_c", 1_000_000, 1_000_000],
+      ["m_s", 2_000_000, 2_000_000],
+    ]);
+  });
+});

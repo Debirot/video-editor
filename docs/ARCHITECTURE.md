@@ -111,7 +111,17 @@ indexado pelo hash, e não vai para o project.json.
   comandos puros de `src/project/commands/clips.ts`. Botões e atalhos usam as mesmas ações.
 - `src/app/selectionStore.ts`: clipes selecionados e área de transferência (fora do histórico).
   Selecionar um clipe seleciona também os do mesmo `linkGroup` (`withLinked`).
-- `src/timeline/hitTest.ts`: régua, trilha + clipe sob o ponteiro, ou vazio.
+- `src/timeline/hitTest.ts`: régua, trilha + clipe sob o ponteiro (com borda para aparar), ou vazio.
+
+### Edição com o mouse (T1.06b)
+- `src/timeline/gestures.ts`: máquina de gestos (scrub, clique, mover, aparar, retângulo).
+  Mover e aparar abrem uma transação; a cada movimento a transação é cancelada e o passo
+  reaplicado a partir do estado inicial, então o projeto atualiza ao vivo e o histórico
+  recebe uma entrada ao soltar. Esc (capturado antes dos atalhos) cancela.
+- `src/timeline/snap.ts`: pontos de encaixe (0, playhead, bordas de clipes, marcadores) a 8 px.
+- `src/app/mediaDrag.ts`: arrastar da biblioteca com eventos de ponteiro, porque o
+  drag-and-drop do HTML5 não funciona no WebView2 com o drop de arquivos do Tauri ligado.
+  A timeline registra um alvo (`setMediaDropTarget`) que desenha a prévia e chama `insertMediaAt`.
 
 ## Pipeline de vídeo (validado na prova técnica)
 

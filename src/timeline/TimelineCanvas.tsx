@@ -1,18 +1,23 @@
 /**
  * Hospeda o canvas da timeline. O React só monta o elemento; desenho e
- * interação são imperativos: qualquer mudança no projeto, na tela (viewStore)
- * ou nos pôsteres agenda um único redesenho no próximo requestAnimationFrame.
+ * interação são imperativos: qualquer mudança no projeto, na tela (viewStore),
+ * na seleção ou nos pôsteres agenda um único redesenho no próximo requestAnimationFrame.
+ * Os gestos do mouse ficam em gestures.ts.
  */
 import { useEffect, useRef } from "react";
 import { projectStore } from "@/project/store";
 import { projectDuration } from "@/project/queries";
-import type { Media } from "@/project/types";
+import { insertMediaAt, mediaClipDuration } from "@/project/commands/clips";
+import type { Media, Project } from "@/project/types";
 import { viewStore } from "@/app/viewStore";
 import { runtimeStore } from "@/app/mediaRuntime";
-import { selectClip, selectionStore } from "@/app/selectionStore";
-import { hitTest } from "./hitTest";
+import { selectionStore, setSelection } from "@/app/selectionStore";
+import { setMediaDropTarget } from "@/app/mediaDrag";
 import { snapToFrame } from "@/lib/time";
 import { drawTimeline, readPalette } from "./draw";
+import { attachGestures, type Overlay } from "./gestures";
+import { trackAtY } from "./hitTest";
+import { snapBlock, snapPoints, snapThreshold } from "./snap";
 import { clamp, clampScrollX, RULER_HEIGHT, trackLayout, xToTime, zoomAt, type Viewport } from "./viewport";
 
 function viewport(): Viewport {
@@ -25,6 +30,28 @@ function maxScrollY(height: number): number {
   return Math.max(0, layout.height - (height - RULER_HEIGHT));
 }
 
+/** Onde uma mídia solta em (x, y) do canvas cairia: início (com encaixe) e trilhas de vídeo/áudio. */
+function dropPlan(project: Project, media: Media, x: number, y: number) {
+  const fps = project.settings.fps;
+  const duration = mediaClipDuration(media, fps);
+  const hovered = trackAtY(y, viewStore.getState().scrollY, trackLayout(project.tracks));
+  let start = Math.max(0, xToTime(x, viewport()));
+  if (viewStore.getState().snap) {
+    const points = snapPoints(project, new Set(), viewStore.getState().playhead);
+    start += snapBlock(start, start + duration, points, snapThreshold(viewStore.getState().pxPerSecond));
+  }
+  start = Math.max(0, snapToFrame(start, fps));
+  const pick = (kind: "video" | "audio") => {
+    const t = project.tracks.find((tr) => tr.id === hovered);
+    if (t && t.kind === kind && !t.locked) return t;
+    return project.tracks.find((tr) => tr.kind === kind && !tr.locked);
+  };
+  const wantsVideo = media.kind !== "audio";
+  const wantsAudio = media.kind === "audio" || (media.kind === "video" && !!media.probe.audioCodec);
+  const tracks = [wantsVideo ? pick("video") : undefined, wantsAudio ? pick("audio") : undefined].filter((t) => !!t);
+  return { start, duration, hovered, tracks };
+}
+
 export function TimelineCanvas() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -35,6 +62,7 @@ export function TimelineCanvas() {
     const ctx = canvas.getContext("2d")!;
     const palette = readPalette();
     const images = new Map<string, HTMLImageElement>();
+    const overlay: Overlay = { marquee: null, ghosts: [] };
     let size = { width: 0, height: 0, dpr: 1 };
     let frame = 0;
 
@@ -56,7 +84,6 @@ export function TimelineCanvas() {
       if (size.width === 0 || size.height === 0) return;
       const { project } = projectStore.getState();
       const view = viewStore.getState();
-      const layout = trackLayout(project.tracks);
       drawTimeline({
         ctx,
         ...size,
@@ -64,12 +91,13 @@ export function TimelineCanvas() {
         scrollY: clamp(view.scrollY, 0, maxScrollY(size.height)),
         fps: project.settings.fps,
         tracks: project.tracks,
-        layout,
+        layout: trackLayout(project.tracks),
         playhead: view.playhead,
         selected: new Set(selectionStore.getState().clipIds),
         media: new Map(project.media.map((m) => [m.id, m])),
         posterFor,
         palette,
+        overlay,
       });
     }
 
@@ -90,32 +118,7 @@ export function TimelineCanvas() {
     });
     resize.observe(wrap);
 
-    // Playhead: clicar ou arrastar na régua.
-    let scrubbing = false;
-    const setPlayheadAt = (x: number) => {
-      const fps = projectStore.getState().project.settings.fps;
-      viewStore.setState({ playhead: snapToFrame(xToTime(x, viewport()), fps) });
-    };
-    const onPointerDown = (e: PointerEvent) => {
-      if (e.button !== 0) return;
-      if (e.offsetY > RULER_HEIGHT) {
-        // Clique nas trilhas: seleciona o clipe (e os ligados); Ctrl+clique alterna; fora limpa.
-        const { project } = projectStore.getState();
-        const hit = hitTest(e.offsetX, e.offsetY, viewport(), viewStore.getState().scrollY, trackLayout(project.tracks), project.tracks);
-        selectClip(hit.area === "track" ? hit.clipId : null, e.ctrlKey || e.metaKey);
-        return;
-      }
-      scrubbing = true;
-      canvas.setPointerCapture(e.pointerId);
-      setPlayheadAt(e.offsetX);
-    };
-    const onPointerMove = (e: PointerEvent) => {
-      if (scrubbing) setPlayheadAt(clamp(e.offsetX, 0, size.width));
-    };
-    const onPointerUp = (e: PointerEvent) => {
-      scrubbing = false;
-      if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-    };
+    const detachGestures = attachGestures({ canvas, viewport, overlay, redraw: schedule });
 
     // Roda: Ctrl = zoom no cursor; Shift ou touchpad lateral = horizontal;
     // vertical só quando as trilhas não cabem, senão também rola na horizontal.
@@ -137,12 +140,44 @@ export function TimelineCanvas() {
         viewStore.setState({ scrollY: clamp(v.scrollY + e.deltaY, 0, maxScrollY(size.height)) });
       }
     };
-
-    canvas.addEventListener("pointerdown", onPointerDown);
-    canvas.addEventListener("pointermove", onPointerMove);
-    canvas.addEventListener("pointerup", onPointerUp);
-    canvas.addEventListener("pointercancel", onPointerUp);
     canvas.addEventListener("wheel", onWheel, { passive: false });
+
+    // Mídia arrastada da biblioteca.
+    const local = (clientX: number, clientY: number) => {
+      const r = canvas.getBoundingClientRect();
+      const x = clientX - r.left;
+      const y = clientY - r.top;
+      return x >= 0 && y >= RULER_HEIGHT && x <= r.width && y <= r.height ? { x, y } : null;
+    };
+    setMediaDropTarget({
+      hover: (cx, cy, media) => {
+        const p = local(cx, cy);
+        overlay.ghosts = [];
+        if (p) {
+          const plan = dropPlan(projectStore.getState().project, media, p.x, p.y);
+          overlay.ghosts = plan.tracks.map((t) => ({ trackId: t.id, start: plan.start, duration: plan.duration }));
+        }
+        schedule();
+        return overlay.ghosts.length > 0;
+      },
+      drop: (cx, cy, media) => {
+        const p = local(cx, cy);
+        if (!p) return false;
+        const store = projectStore.getState();
+        const plan = dropPlan(store.project, media, p.x, p.y);
+        if (plan.tracks.length === 0) return false;
+        const before = new Set(store.project.tracks.flatMap((t) => t.clips.map((c) => c.id)));
+        store.applyCommand("Inserir mídia", insertMediaAt(media, store.project.settings.fps, plan.start, plan.hovered));
+        const added = projectStore.getState().project.tracks.flatMap((t) => t.clips.map((c) => c.id)).filter((id) => !before.has(id));
+        setSelection(added);
+        return true;
+      },
+      leave: () => {
+        overlay.ghosts = [];
+        schedule();
+      },
+    });
+
     const unsubs = [
       projectStore.subscribe(schedule),
       viewStore.subscribe(schedule),
@@ -153,18 +188,16 @@ export function TimelineCanvas() {
     return () => {
       cancelAnimationFrame(frame);
       resize.disconnect();
+      detachGestures();
+      setMediaDropTarget(null);
       unsubs.forEach((u) => u());
-      canvas.removeEventListener("pointerdown", onPointerDown);
-      canvas.removeEventListener("pointermove", onPointerMove);
-      canvas.removeEventListener("pointerup", onPointerUp);
-      canvas.removeEventListener("pointercancel", onPointerUp);
       canvas.removeEventListener("wheel", onWheel);
     };
   }, []);
 
   return (
     <div ref={wrapRef} className="relative min-w-0 flex-1 overflow-hidden">
-      <canvas ref={canvasRef} className="absolute inset-0" aria-label="Trilhas da timeline" />
+      <canvas ref={canvasRef} className="absolute inset-0 touch-none" aria-label="Trilhas da timeline" />
     </div>
   );
 }

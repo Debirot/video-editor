@@ -113,13 +113,25 @@ Pronto quando:
 - [ ] No Windows: conferir os atalhos e a seleção
 Fora do escopo: arrastar, aparar com o mouse, encaixe, seleção por retângulo (T1.06b).
 
-### T1.06b Edição com o mouse · próxima
-Objetivo: arrastar clipes (entre trilhas também), aparar pelas bordas, encaixe (8 px) em bordas de
-clipes, playhead e marcadores, seleção por retângulo, arrastar da biblioteca para a timeline.
-Cada arrasto é uma transação (uma entrada no histórico ao soltar; Esc cancela).
-Base: clearRange e cutClip de clips.ts; hitTest.ts ganha bordas de clipe.
+### T1.06b Edição com o mouse · concluída
+Objetivo: arrastar clipes (entre trilhas também), aparar pelas bordas, encaixe, seleção por
+retângulo, arrastar da biblioteca para a timeline. Cada arrasto é uma transação; Esc cancela.
+Arquivos: src/project/commands/clips.ts (moveClips, trimBounds, trimClips, insertMediaAt),
+src/timeline/{gestures,snap,hitTest,draw}.ts, src/timeline/TimelineCanvas.tsx, src/app/mediaDrag.ts,
+src/app/Layout.tsx, src/panels/library/MediaLibrary.tsx, src/panels/timeline/TimelinePanel.tsx
+Pronto quando:
+- [x] moveClips testado: tempo com sobrescrita, troca de trilha (o ligado só anda no tempo), vários
+      juntos, limites (antes do zero, trilha inexistente ou travada), sem entrada quando não muda
+- [x] trimBounds/trimClips testados: vizinho, começo e fim da mídia, speed, 1 quadro mínimo,
+      ligados com o limite mais apertado, fonte acompanha o início
+- [x] insertMediaAt testado: trilha escolhida, vídeo solto em trilha de áudio, sobrescrita
+- [x] snap.ts e hitTest (bordas, retângulo) testados
+- [x] No navegador: arrastar da biblioteca com prévia, encaixe em 14 s, mover para 0 s, mover para V2,
+      aparar −3 s, Esc cancela sem entrada no histórico, retângulo seleciona, 5× Ctrl+Z volta ao zero
+- [ ] No Windows: conferir arrasto da biblioteca (o drop de arquivos do sistema continua funcionando)
+Fora do escopo: rolagem automática ao arrastar perto da borda, ripple/roll/slip (Fase 3).
 
-### T1.07 Preview
+### T1.07 Preview · próxima
 Reprodução de várias trilhas de vídeo, seek, quadro a quadro, J/K/L, qualidade (1, 1/2, 1/4)
 e proporção. Pool de decodificadores (6, LRU) e cache de quadros (48, LRU). Substitui proof.ts.
 

@@ -40,6 +40,26 @@ function trackEnd(track: Draft<Track> | undefined): number {
  * A duração é arredondada para baixo ao quadro do projeto.
  */
 export function appendMediaClip(media: Media, fps: Rational): Recipe {
+  return placeMedia(media, fps, null, null);
+}
+
+/** Duração de uma mídia nova na timeline: a da fonte (para baixo, no quadro) ou 5 s para imagem. */
+export function mediaClipDuration(media: Media, fps: Rational): Us {
+  const frames =
+    media.kind === "image" ? IMAGE_DURATION_SECONDS * Math.round(fps.num / fps.den) : usToFrame(media.probe.duration, fps);
+  return frameToUs(frames, fps);
+}
+
+/**
+ * Solta a mídia em `at`, sobrescrevendo o que estiver no caminho. Vídeo vai para
+ * `trackId` se for uma trilha de vídeo livre (senão a primeira livre); o áudio
+ * dele vai para `trackId` se for de áudio (senão a primeira de áudio livre).
+ */
+export function insertMediaAt(media: Media, fps: Rational, at: Us, trackId: Id | null): Recipe {
+  return placeMedia(media, fps, at, trackId);
+}
+
+function placeMedia(media: Media, fps: Rational, at: Us | null, trackId: Id | null): Recipe {
   // Ids gerados fora da recipe: refazer reaplica os mesmos patches.
   const videoId = newId("c");
   const audioId = newId("c");
@@ -48,26 +68,34 @@ export function appendMediaClip(media: Media, fps: Rational): Recipe {
   return (draft) => {
     const wantsVideo = media.kind === "video" || media.kind === "image";
     const wantsAudio = media.kind === "audio" || (media.kind === "video" && !!media.probe.audioCodec);
-    const videoTrack = wantsVideo ? draft.tracks.find((t) => t.kind === "video" && !t.locked) : undefined;
-    const audioTrack = wantsAudio ? draft.tracks.find((t) => t.kind === "audio" && !t.locked) : undefined;
+    const pick = (kind: "video" | "audio") => {
+      const target = draft.tracks.find((t) => t.id === trackId);
+      if (target && target.kind === kind && !target.locked) return target;
+      return draft.tracks.find((t) => t.kind === kind && !t.locked);
+    };
+    const videoTrack = wantsVideo ? pick("video") : undefined;
+    const audioTrack = wantsAudio ? pick("audio") : undefined;
     if (wantsVideo && !videoTrack) return;
     if (!videoTrack && !audioTrack) return;
 
-    const frames =
-      media.kind === "image"
-        ? IMAGE_DURATION_SECONDS * Math.round(fps.num / fps.den)
-        : usToFrame(media.probe.duration, fps);
-    const duration = frameToUs(frames, fps);
+    const duration = mediaClipDuration(media, fps);
     if (duration <= 0) return;
 
-    const start = snapToFrame(Math.max(trackEnd(videoTrack), trackEnd(audioTrack)), fps);
+    const start = snapToFrame(at ?? Math.max(trackEnd(videoTrack), trackEnd(audioTrack)), fps);
     const linked = !!videoTrack && !!audioTrack;
     const common = { start, duration, mediaId: media.id, ...(linked ? { linkGroup: group } : {}) };
 
-    videoTrack?.clips.push(createClip({ id: videoId, kind: "media", ...common }));
-    audioTrack?.clips.push(
-      createClip({ id: audioId, kind: "media", ...common, audio: { gainDb: 0, fadeIn: 0, fadeOut: 0 } }),
-    );
+    if (videoTrack) {
+      clearRange(videoTrack as Track, start, start + duration);
+      insertClip(videoTrack as Track, createClip({ id: videoId, kind: "media", ...common }));
+    }
+    if (audioTrack) {
+      clearRange(audioTrack as Track, start, start + duration);
+      insertClip(
+        audioTrack as Track,
+        createClip({ id: audioId, kind: "media", ...common, audio: { gainDb: 0, fadeIn: 0, fadeOut: 0 } }),
+      );
+    }
   };
 }
 
@@ -252,5 +280,111 @@ export function pasteClips(entries: ClipboardEntry[], at: Us, newIds: Id[]): Rec
       clearRange(track as Track, start, start + clip.duration);
       insertClip(track as Track, clip);
     });
+  };
+}
+
+/**
+ * Move clipes `delta` µs no tempo. Com `trackShift`, os clipes do tipo indicado
+ * (vídeo ou áudio) também mudam `by` posições na lista de trilhas daquele tipo;
+ * os do outro tipo (ex.: o áudio ligado) só andam no tempo. Sobrescreve o destino.
+ * Não faz nada se algum clipe fosse para antes do zero ou para trilha inexistente ou travada.
+ */
+export function moveClips(ids: Id[], delta: Us, trackShift: { kind: Track["kind"]; by: number } | null): Recipe {
+  const wanted = new Set(ids);
+  return (draft) => {
+    const moving: { clip: Clip; from: Track; to: Track }[] = [];
+    for (const track of draft.tracks as Track[]) {
+      if (track.locked) continue;
+      for (const c of track.clips) {
+        if (!wanted.has(c.id)) continue;
+        let to = track;
+        if (trackShift && trackShift.by !== 0 && track.kind === trackShift.kind) {
+          const sameKind = (draft.tracks as Track[]).filter((t) => t.kind === track.kind);
+          const target = sameKind[sameKind.indexOf(track) + trackShift.by];
+          if (!target || target.locked) return;
+          to = target;
+        }
+        moving.push({ clip: isDraft(c) ? current(c) : c, from: track, to });
+      }
+    }
+    if (moving.length === 0 || (delta === 0 && moving.every((m) => m.from === m.to))) return;
+    if (moving.some((m) => m.clip.start + delta < 0)) return;
+
+    const ids_ = new Set(moving.map((m) => m.clip.id));
+    for (const m of moving) {
+      m.from.clips = m.from.clips.filter((c) => c.id !== m.clip.id);
+      dropTransitions(m.from, ids_);
+    }
+    for (const m of moving) {
+      const clip = { ...structuredClone(m.clip), start: m.clip.start + delta };
+      clearRange(m.to, clip.start, clipEnd(clip));
+      insertClip(m.to, clip);
+    }
+  };
+}
+
+export type Edge = "start" | "end";
+
+/**
+ * Limites para aparar a borda `edge` dos clipes `ids` (todos juntos): não passar do
+ * vizinho, nem do começo/fim da mídia, nem deixar clipe com menos de 1 quadro.
+ * Devolve null se não houver espaço (ou se nenhum clipe puder ser aparado).
+ */
+export function trimBounds(project: Project, ids: Id[], edge: Edge, fps: Rational): [Us, Us] | null {
+  const oneFrame = frameToUs(1, fps);
+  const wanted = new Set(ids);
+  let lo = -Infinity;
+  let hi = Infinity;
+  let any = false;
+  for (const track of project.tracks) {
+    if (track.locked) continue;
+    track.clips.forEach((c, i) => {
+      if (!wanted.has(c.id)) return;
+      any = true;
+      const media = c.mediaId ? project.media.find((m) => m.id === c.mediaId) : undefined;
+      const limitedBySource = c.kind === "media" && media && media.kind !== "image";
+      if (edge === "end") {
+        lo = Math.max(lo, c.start + oneFrame);
+        const next = track.clips[i + 1];
+        hi = Math.min(hi, next ? next.start : Infinity);
+        if (limitedBySource) hi = Math.min(hi, c.start + Math.floor((media.probe.duration - c.sourceIn) / c.speed));
+      } else {
+        hi = Math.min(hi, clipEnd(c) - oneFrame);
+        const prev = track.clips[i - 1];
+        lo = Math.max(lo, prev ? clipEnd(prev) : 0);
+        if (limitedBySource) lo = Math.max(lo, c.start - Math.floor(c.sourceIn / c.speed));
+      }
+    });
+  }
+  if (!any || lo > hi) return null;
+  return [lo, hi];
+}
+
+/** Põe a borda `edge` dos clipes em `t` (use trimBounds antes). Início move também a fonte. */
+export function trimClips(ids: Id[], edge: Edge, t: Us): Recipe {
+  const wanted = new Set(ids);
+  return (draft) => {
+    for (const track of draft.tracks) {
+      if (track.locked) continue;
+      for (const c of track.clips) {
+        if (!wanted.has(c.id)) continue;
+        const end = clipEnd(c);
+        if (edge === "end") {
+          if (t <= c.start || t === end) continue;
+          c.duration = t - c.start;
+          c.keyframes = shiftKeyframes(isDraft(c) ? current(c) : c, 0, c.duration);
+          if (c.audio) c.audio.fadeOut = Math.min(c.audio.fadeOut, c.duration);
+        } else {
+          if (t >= end || t === c.start) continue;
+          const offset = t - c.start;
+          const plain = isDraft(c) ? current(c) : c;
+          if (c.kind !== "freeze") c.sourceIn = Math.max(0, c.sourceIn + Math.round(offset * c.speed));
+          c.start = t;
+          c.duration = end - t;
+          c.keyframes = shiftKeyframes(plain, offset, c.duration);
+          if (c.audio) c.audio.fadeIn = Math.min(c.audio.fadeIn, c.duration);
+        }
+      }
+    }
   };
 }
