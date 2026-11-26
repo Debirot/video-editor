@@ -15,6 +15,8 @@ export interface ViewState {
   scrollY: number;
   /** Largura visível da área das trilhas (px), medida pelo canvas. */
   viewportWidth: number;
+  /** Encaixe nas bordas de clipes e no playhead (usado ao arrastar, T1.06b). */
+  snap: boolean;
 }
 
 export const viewStore = createStore<ViewState>()(() => ({
@@ -23,6 +25,7 @@ export const viewStore = createStore<ViewState>()(() => ({
   scrollX: 0,
   scrollY: 0,
   viewportWidth: 0,
+  snap: true,
 }));
 
 export function useView<T>(selector: (s: ViewState) => T): T {

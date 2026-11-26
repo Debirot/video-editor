@@ -16,6 +16,8 @@ import { TimelinePanel } from "@/panels/timeline/TimelinePanel";
 import { isTauri, onFileDrop } from "@/lib/ipc";
 import { importPaths, listenForJobs } from "./importMedia";
 import { runtimeStore, useRuntime } from "./mediaRuntime";
+import { actionFor, isTypingTarget } from "./shortcuts";
+import { runAction } from "./editActions";
 
 /** Abaixo de 1400 px os painéis laterais começam mais estreitos. */
 const SIDE_DEFAULT = typeof window !== "undefined" && window.innerWidth < 1400 ? 240 : 300;
@@ -49,6 +51,19 @@ export function Layout() {
     ];
     return () => stops.forEach((p) => void p.then((stop) => stop()).catch(() => {}));
   }, [libraryRef]);
+
+  // Atalhos de teclado (mapa em shortcuts.ts). Não valem enquanto se digita num campo.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || isTypingTarget(e.target)) return;
+      const action = actionFor(e);
+      if (!action) return;
+      e.preventDefault();
+      runAction(action);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const selectTab = (next: LibraryTab) => {
     const panel = libraryRef.current;

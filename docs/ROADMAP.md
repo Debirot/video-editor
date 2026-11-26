@@ -96,9 +96,28 @@ Pronto quando:
 Fora do escopo: arrastar e mover clipes, seleção, cortar, dividir, encaixe, atalhos (T1.06);
 miniaturas ao longo do clipe e waveforms.
 
-### T1.06 Edição · próxima
-Arrastar da biblioteca, mover entre trilhas, aparar bordas, snap (8 px), seleção múltipla,
-copiar e colar, dividir (splitClip, trimClip, moveClips com testes), apagar. Atalhos em shortcuts.ts.
+### T1.06a Edição por comandos e teclado · concluída
+Objetivo: seleção, dividir, apagar, apagar fechando o espaço, copiar, colar, duplicar e atalhos.
+Arquivos: src/project/commands/clips.ts, src/project/queries.ts (withLinked, nextCut),
+src/app/{selectionStore,shortcuts,editActions,Layout}.ts(x), src/timeline/{hitTest,draw}.ts,
+src/timeline/TimelineCanvas.tsx, src/panels/timeline/TimelinePanel.tsx, src/panels/preview/PreviewPanel.tsx
+Pronto quando:
+- [x] splitClips testado: meio do clipe, borda (não faz nada), speed 2, freeze, keyframes, fades,
+      clipe ligado (divide os dois e mantém as metades ligadas), trilha travada, desfazer em um passo
+- [x] deleteClips (com e sem ripple), clearRange (dentro, pontas, atravessando), copiar/colar/duplicar
+      com novos ids e grupos, trilha travada ou removida; invariantes das trilhas conferidas
+- [x] Mapa único de atalhos testado (normalização, Cmd = Ctrl, símbolos sem Shift)
+- [x] No navegador: clique seleciona (com o ligado), Ctrl+clique soma, Esc limpa; S, Delete,
+      Shift+Delete, Ctrl+C/V/D, Ctrl+Z/Ctrl+Shift+Z, ←/→, Shift+←/→, ↑/↓, Home/End, +/−, Shift+Z;
+      atalhos não disparam no campo de nome
+- [ ] No Windows: conferir os atalhos e a seleção
+Fora do escopo: arrastar, aparar com o mouse, encaixe, seleção por retângulo (T1.06b).
+
+### T1.06b Edição com o mouse · próxima
+Objetivo: arrastar clipes (entre trilhas também), aparar pelas bordas, encaixe (8 px) em bordas de
+clipes, playhead e marcadores, seleção por retângulo, arrastar da biblioteca para a timeline.
+Cada arrasto é uma transação (uma entrada no histórico ao soltar; Esc cancela).
+Base: clearRange e cutClip de clips.ts; hitTest.ts ganha bordas de clipe.
 
 ### T1.07 Preview
 Reprodução de várias trilhas de vídeo, seek, quadro a quadro, J/K/L, qualidade (1, 1/2, 1/4)

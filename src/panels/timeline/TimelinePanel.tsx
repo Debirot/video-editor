@@ -2,7 +2,6 @@
  * Painel inferior: barra fina de ferramentas, cabeçalhos de trilha (DOM) e área das
  * trilhas (canvas, src/timeline/). Os cabeçalhos acompanham a rolagem vertical do canvas.
  */
-import { useState } from "react";
 import {
   Eye,
   EyeOff,
@@ -21,36 +20,21 @@ import { Button } from "@/components/ui/button";
 import { Tip } from "@/components/ui/tooltip";
 import { useProject } from "@/app/useProject";
 import { useView, viewStore } from "@/app/viewStore";
+import { useSelection } from "@/app/selectionStore";
+import { splitAtPlayhead, zoomBy, zoomToFit } from "@/app/editActions";
 import { cn } from "@/lib/cn";
 import { projectStore } from "@/project/store";
-import { projectDuration } from "@/project/queries";
 import { setTrackFlag } from "@/project/commands/tracks";
 import type { Track } from "@/project/types";
 import { TimelineCanvas } from "@/timeline/TimelineCanvas";
-import { clampScrollX, fitZoom, timeToX, zoomAt, type Viewport } from "@/timeline/viewport";
 
 const TRACK_HEIGHT = "h-11";
-
-/** Zoom pelos botões: ancorado no playhead se ele estiver visível, senão no centro. */
-function zoomBy(factor: number) {
-  const v = viewStore.getState();
-  const vp: Viewport = { pxPerSecond: v.pxPerSecond, scrollX: v.scrollX, width: v.viewportWidth };
-  const playheadX = timeToX(v.playhead, vp);
-  const anchor = playheadX >= 0 && playheadX <= vp.width ? playheadX : vp.width / 2;
-  const z = zoomAt(vp, factor, anchor);
-  const content = projectDuration(projectStore.getState().project);
-  viewStore.setState({ pxPerSecond: z.pxPerSecond, scrollX: clampScrollX(z.scrollX, content, { ...vp, ...z }) });
-}
-
-function zoomToFit() {
-  const content = projectDuration(projectStore.getState().project);
-  viewStore.setState({ pxPerSecond: fitZoom(content, viewStore.getState().viewportWidth), scrollX: 0 });
-}
 
 export function TimelinePanel() {
   const tracks = useProject((s) => s.project.tracks);
   const scrollY = useView((s) => s.scrollY);
-  const [snap, setSnap] = useState(true);
+  const snap = useView((s) => s.snap);
+  const hasSelection = useSelection((s) => s.clipIds.length > 0);
 
   // Vídeo: índice maior fica por cima na composição, então aparece no topo.
   const video = tracks.filter((t) => t.kind === "video").reverse();
@@ -65,8 +49,8 @@ export function TimelinePanel() {
             <MousePointer2 />
           </Button>
         </Tip>
-        <Tip label="Dividir no playhead (em breve)" shortcut="S">
-          <Button variant="ghost" size="sm" aria-label="Dividir no playhead" disabled>
+        <Tip label={hasSelection ? "Dividir no playhead" : "Selecione um clipe para dividir"} shortcut="S">
+          <Button variant="ghost" size="sm" aria-label="Dividir no playhead" disabled={!hasSelection} onClick={splitAtPlayhead}>
             <Scissors />
           </Button>
         </Tip>
@@ -77,23 +61,23 @@ export function TimelinePanel() {
               size="sm"
               aria-label="Encaixe"
               aria-pressed={snap}
-              onClick={() => setSnap((s) => !s)}
+              onClick={() => viewStore.setState((s) => ({ snap: !s.snap }))}
               className={cn(snap && "text-accent hover:text-accent")}
             >
               <Magnet />
             </Button>
           </Tip>
-          <Tip label="Diminuir zoom" shortcut="Ctrl + roda">
+          <Tip label="Diminuir zoom" shortcut="− ou Ctrl + roda">
             <Button variant="ghost" size="sm" aria-label="Diminuir zoom" onClick={() => zoomBy(1 / 1.5)}>
               <ZoomOut />
             </Button>
           </Tip>
-          <Tip label="Aumentar zoom" shortcut="Ctrl + roda">
+          <Tip label="Aumentar zoom" shortcut="+ ou Ctrl + roda">
             <Button variant="ghost" size="sm" aria-label="Aumentar zoom" onClick={() => zoomBy(1.5)}>
               <ZoomIn />
             </Button>
           </Tip>
-          <Tip label="Mostrar tudo">
+          <Tip label="Mostrar tudo" shortcut="Shift+Z">
             <Button variant="ghost" size="sm" aria-label="Mostrar tudo" disabled={empty} onClick={zoomToFit}>
               <Maximize2 />
             </Button>

@@ -104,6 +104,15 @@ indexado pelo hash, e não vai para o project.json.
 - Os cabeçalhos de trilha são DOM (TimelinePanel) com as mesmas alturas de `trackLayout`
   (régua 24, trilha 44, faixa 4) e acompanham a rolagem vertical por `translateY`.
 
+### Edição (T1.06a)
+- `src/app/shortcuts.ts`: mapa único combinação → ação, sem lógica. `Layout.tsx` escuta o
+  teclado e ignora quando o foco está num campo de texto.
+- `src/app/editActions.ts`: `runAction(ação)` lê os stores e chama `applyCommand` com os
+  comandos puros de `src/project/commands/clips.ts`. Botões e atalhos usam as mesmas ações.
+- `src/app/selectionStore.ts`: clipes selecionados e área de transferência (fora do histórico).
+  Selecionar um clipe seleciona também os do mesmo `linkGroup` (`withLinked`).
+- `src/timeline/hitTest.ts`: régua, trilha + clipe sob o ponteiro, ou vazio.
+
 ## Pipeline de vídeo (validado na prova técnica)
 
 ```

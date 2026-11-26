@@ -113,20 +113,25 @@ Componentes de painel só montam peças daqui. Se falta uma peça, ela é criada
 
 Botões sem função ainda aparecem desabilitados com tooltip "(em breve)".
 
-## Atalhos (src/app/shortcuts.ts, T1.06)
+## Atalhos (src/app/shortcuts.ts)
 
-| Atalho | Ação |
-|---|---|
-| Espaço | Reproduzir ou pausar |
-| J / K / L | Voltar, pausar, avançar (repetir acelera) |
-| ← / → | Um quadro para trás ou para frente |
-| Shift + ← / → | Um segundo para trás ou para frente |
-| ↑ / ↓ | Corte anterior ou próximo |
-| S | Dividir no playhead |
-| Delete / Shift + Delete | Apagar / apagar fechando o espaço |
-| Ctrl + Z / Ctrl + Shift + Z | Desfazer / refazer |
-| Ctrl + C / Ctrl + V / Ctrl + D | Copiar / colar / duplicar |
-| M | Adicionar marcador |
-| N | Ligar ou desligar snap |
-| + / − | Zoom da timeline |
-| Ctrl + I / Ctrl + S / Ctrl + E | Importar / salvar / exportar |
+| Atalho | Ação | Desde |
+|---|---|---|
+| ← / → | Um quadro para trás ou para frente | T1.06a |
+| Shift + ← / → | Um segundo para trás ou para frente | T1.06a |
+| ↑ / ↓ | Corte anterior ou próximo | T1.06a |
+| Home / End | Início / fim da timeline | T1.06a |
+| S | Dividir os clipes selecionados no playhead | T1.06a |
+| Delete / Shift + Delete | Apagar / apagar fechando o espaço (só nas trilhas afetadas) | T1.06a |
+| Ctrl + Z / Ctrl + Shift + Z (ou Ctrl + Y) | Desfazer / refazer | T1.06a |
+| Ctrl + C / Ctrl + V / Ctrl + D | Copiar / colar no playhead / duplicar logo depois | T1.06a |
+| Ctrl + A / Esc | Selecionar tudo / limpar seleção | T1.06a |
+| N | Ligar ou desligar encaixe | T1.06a |
+| + / − / Shift + Z | Zoom da timeline / mostrar tudo | T1.06a |
+| Ctrl + I | Importar | T1.06a |
+| Espaço, J / K / L | Reproduzir/pausar, voltar/pausar/avançar | T1.07 |
+| M | Adicionar marcador | Fase 2 |
+| Ctrl + S / Ctrl + E | Salvar / exportar | T1.09 / T1.10 |
+
+Seleção: clique num clipe seleciona ele e o clipe ligado (vídeo + áudio do mesmo arquivo);
+Ctrl + clique soma ou tira; clique em área vazia limpa. Selecionado = contorno de 2 px em `accent`.

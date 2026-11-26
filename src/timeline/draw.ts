@@ -54,6 +54,8 @@ export interface DrawInput {
   tracks: Track[];
   layout: TrackLayout;
   playhead: Us;
+  /** Clipes selecionados: contorno em accent. */
+  selected: Set<string>;
   media: Map<string, Media>;
   /** Pôster pronto da mídia, ou null. */
   posterFor: (media: Media) => CanvasImageSource | null;
@@ -126,13 +128,15 @@ function drawClip(input: DrawInput, track: Track, clip: Clip, rowY: number, rowH
   ctx.fillText(clipLabel(clip, media), textX, y + h / 2);
   ctx.restore();
 
-  // Contorno sutil por cima (fora do clip() para não cortar a borda).
+  // Contorno por cima (fora do clip() para não cortar a borda): sutil, ou accent se selecionado.
+  const selected = input.selected.has(clip.id);
   ctx.save();
-  ctx.globalAlpha = 0.25;
-  ctx.strokeStyle = p.text1;
-  ctx.lineWidth = 1;
+  ctx.globalAlpha = selected ? 1 : 0.25;
+  ctx.strokeStyle = selected ? p.accent : p.text1;
+  ctx.lineWidth = selected ? 2 : 1;
+  const inset = selected ? 1 : 0.5;
   ctx.beginPath();
-  ctx.roundRect(x + 0.5, y + 0.5, Math.max(0, w - 1), h - 1, CLIP_RADIUS);
+  ctx.roundRect(x + inset, y + inset, Math.max(0, w - inset * 2), h - inset * 2, CLIP_RADIUS);
   ctx.stroke();
   ctx.restore();
 }

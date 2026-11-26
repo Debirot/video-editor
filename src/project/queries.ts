@@ -82,3 +82,28 @@ export function aspectLabel(width: number, height: number): string {
   const d = gcd(Math.round(width), Math.round(height));
   return `${Math.round(width) / d}:${Math.round(height) / d}`;
 }
+
+/** Os ids pedidos mais todos os clipes do mesmo linkGroup (vídeo e áudio do mesmo arquivo). */
+export function withLinked(project: Project, ids: Iterable<Id>): Id[] {
+  const wanted = new Set(ids);
+  const groups = new Set<Id>();
+  for (const t of project.tracks) for (const c of t.clips) if (wanted.has(c.id) && c.linkGroup) groups.add(c.linkGroup);
+  const out = new Set(wanted);
+  for (const t of project.tracks) for (const c of t.clips) if (c.linkGroup && groups.has(c.linkGroup)) out.add(c.id);
+  // Só ids que existem.
+  const existing = new Set(project.tracks.flatMap((t) => t.clips.map((c) => c.id)));
+  return [...out].filter((id) => existing.has(id));
+}
+
+/** Próximo (dir 1) ou anterior (dir −1) ponto de corte (início ou fim de clipe) a partir de t. */
+export function nextCut(project: Project, t: Us, dir: 1 | -1): Us | undefined {
+  let best: Us | undefined;
+  for (const track of project.tracks) {
+    for (const c of track.clips) {
+      for (const p of [c.start, clipEnd(c)]) {
+        if (dir === 1 ? p > t && (best === undefined || p < best) : p < t && (best === undefined || p > best)) best = p;
+      }
+    }
+  }
+  return best;
+}

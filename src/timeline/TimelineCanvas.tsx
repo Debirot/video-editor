@@ -9,6 +9,8 @@ import { projectDuration } from "@/project/queries";
 import type { Media } from "@/project/types";
 import { viewStore } from "@/app/viewStore";
 import { runtimeStore } from "@/app/mediaRuntime";
+import { selectClip, selectionStore } from "@/app/selectionStore";
+import { hitTest } from "./hitTest";
 import { snapToFrame } from "@/lib/time";
 import { drawTimeline, readPalette } from "./draw";
 import { clamp, clampScrollX, RULER_HEIGHT, trackLayout, xToTime, zoomAt, type Viewport } from "./viewport";
@@ -64,6 +66,7 @@ export function TimelineCanvas() {
         tracks: project.tracks,
         layout,
         playhead: view.playhead,
+        selected: new Set(selectionStore.getState().clipIds),
         media: new Map(project.media.map((m) => [m.id, m])),
         posterFor,
         palette,
@@ -94,7 +97,14 @@ export function TimelineCanvas() {
       viewStore.setState({ playhead: snapToFrame(xToTime(x, viewport()), fps) });
     };
     const onPointerDown = (e: PointerEvent) => {
-      if (e.button !== 0 || e.offsetY > RULER_HEIGHT) return;
+      if (e.button !== 0) return;
+      if (e.offsetY > RULER_HEIGHT) {
+        // Clique nas trilhas: seleciona o clipe (e os ligados); Ctrl+clique alterna; fora limpa.
+        const { project } = projectStore.getState();
+        const hit = hitTest(e.offsetX, e.offsetY, viewport(), viewStore.getState().scrollY, trackLayout(project.tracks), project.tracks);
+        selectClip(hit.area === "track" ? hit.clipId : null, e.ctrlKey || e.metaKey);
+        return;
+      }
       scrubbing = true;
       canvas.setPointerCapture(e.pointerId);
       setPlayheadAt(e.offsetX);
@@ -133,7 +143,12 @@ export function TimelineCanvas() {
     canvas.addEventListener("pointerup", onPointerUp);
     canvas.addEventListener("pointercancel", onPointerUp);
     canvas.addEventListener("wheel", onWheel, { passive: false });
-    const unsubs = [projectStore.subscribe(schedule), viewStore.subscribe(schedule), runtimeStore.subscribe(schedule)];
+    const unsubs = [
+      projectStore.subscribe(schedule),
+      viewStore.subscribe(schedule),
+      runtimeStore.subscribe(schedule),
+      selectionStore.subscribe(schedule),
+    ];
 
     return () => {
       cancelAnimationFrame(frame);

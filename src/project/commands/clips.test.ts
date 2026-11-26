@@ -95,3 +95,213 @@ describe("appendMediaClip", () => {
     expect(redo(undo(s1)).project).toEqual(s1.project);
   });
 });
+
+// ─── T1.06a ──────────────────────────────────────────────────────────────────
+import { makeClip, makeSmallProject } from "../fixtures";
+import { clipAt, nextCut, withLinked } from "../queries";
+import { clearRange, copyClips, cutClip, deleteClips, pasteClips, splitClips } from "./clips";
+import type { Track } from "../types";
+
+const small = (): Snapshot => ({ project: makeSmallProject(), history: emptyHistory() });
+const track = (p: Project, id = "t_v1") => p.tracks.find((t) => t.id === id)!;
+const spans = (t: Track) => t.clips.map((c) => [c.id, c.start, c.duration, c.sourceIn]);
+const valid = (p: Project) => p.tracks.every((t) => trackProblems(t).length === 0);
+
+/** V1: c_1 0–2 s; c_2 2–5 s (fonte a partir de 10 s); c_3 6–8 s com speed 2. A1 com c_a ligado a c_2. */
+function linkedProject(): Snapshot {
+  const s = small();
+  const p = structuredClone(s.project);
+  p.tracks[0]!.clips[1]!.linkGroup = "g_1";
+  p.tracks[1]!.clips.push(
+    makeClip({ id: "c_a", start: 2_000_000, duration: 3_000_000, sourceIn: 10_000_000, linkGroup: "g_1", audio: { gainDb: 0, fadeIn: 500_000, fadeOut: 400_000 } }),
+  );
+  return { project: p, history: emptyHistory() };
+}
+
+describe("cutClip", () => {
+  it("corta no meio e avança a fonte; speed 2 avança o dobro", () => {
+    const [l, r] = cutClip(makeClip({ id: "c", start: 1_000_000, duration: 4_000_000, sourceIn: 500_000, speed: 2 }), 2_000_000, "c_r");
+    expect([l.start, l.duration, l.sourceIn]).toEqual([1_000_000, 1_000_000, 500_000]);
+    expect([r.id, r.start, r.duration, r.sourceIn]).toEqual(["c_r", 2_000_000, 3_000_000, 2_500_000]);
+  });
+
+  it("keyframes vão para a metade certa, relativos ao novo início", () => {
+    const clip = makeClip({
+      id: "c", start: 0, duration: 4_000_000,
+      keyframes: { "transform.opacity": [{ t: 0, v: 0, ease: "linear" }, { t: 1_000_000, v: 1, ease: "linear" }, { t: 3_000_000, v: 0.5, ease: "linear" }] },
+    });
+    const [l, r] = cutClip(clip, 2_000_000, "r");
+    expect(l.keyframes["transform.opacity"]!.map((k) => k.t)).toEqual([0, 1_000_000]);
+    expect(r.keyframes["transform.opacity"]!.map((k) => k.t)).toEqual([1_000_000]);
+  });
+
+  it("freeze mantém o mesmo quadro nas duas metades", () => {
+    const [, r] = cutClip(makeClip({ id: "f", kind: "freeze", start: 0, duration: 2_000_000, sourceIn: 777 }), 1_000_000, "r");
+    expect(r.sourceIn).toBe(777);
+  });
+});
+
+describe("splitClips", () => {
+  it("divide no meio, a direita ganha o id pedido", () => {
+    const s = execute(small(), "Dividir", splitClips(["c_2"], 3_000_000, { c_2: "c_2b" }));
+    expect(spans(track(s.project))).toEqual([
+      ["c_1", 0, 2_000_000, 0],
+      ["c_2", 2_000_000, 1_000_000, 10_000_000],
+      ["c_2b", 3_000_000, 2_000_000, 11_000_000],
+      ["c_3", 6_000_000, 2_000_000, 0],
+    ]);
+    expect(valid(s.project)).toBe(true);
+  });
+
+  it("na borda do clipe não faz nada", () => {
+    const s0 = small();
+    expect(execute(s0, "Dividir", splitClips(["c_2"], 2_000_000, {}))).toBe(s0);
+    expect(execute(s0, "Dividir", splitClips(["c_2"], 5_000_000, {}))).toBe(s0);
+  });
+
+  it("clipe com speed 2: a fonte da direita avança o dobro", () => {
+    const s = execute(small(), "Dividir", splitClips(["c_3"], 7_000_000, { c_3: "c_3b" }));
+    expect(track(s.project).clips.find((c) => c.id === "c_3b")!.sourceIn).toBe(2_000_000);
+  });
+
+  it("clipe ligado: divide os dois e as metades da direita continuam ligadas entre si", () => {
+    const s0 = linkedProject();
+    const ids = withLinked(s0.project, ["c_2"]);
+    expect(ids.sort()).toEqual(["c_2", "c_a"]);
+    const s = execute(s0, "Dividir", splitClips(ids, 3_000_000, { c_2: "v_r", c_a: "a_r" }));
+    const vr = track(s.project).clips.find((c) => c.id === "v_r")!;
+    const ar = track(s.project, "t_a1").clips.find((c) => c.id === "a_r")!;
+    const al = track(s.project, "t_a1").clips.find((c) => c.id === "c_a")!;
+    expect(vr.linkGroup).toBe(ar.linkGroup);
+    expect(vr.linkGroup).not.toBe("g_1");
+    expect(al.linkGroup).toBe("g_1");
+    expect([al.audio!.fadeIn, al.audio!.fadeOut, ar.audio!.fadeIn, ar.audio!.fadeOut]).toEqual([500_000, 0, 0, 400_000]);
+  });
+
+  it("Ctrl+Z desfaz a divisão em um passo", () => {
+    const s0 = linkedProject();
+    const s = execute(s0, "Dividir", splitClips(["c_2", "c_a"], 3_000_000, {}));
+    expect(undo(s).project).toEqual(s0.project);
+  });
+
+  it("trilha travada não divide", () => {
+    const s0 = execute(small(), "travar", (d) => void (d.tracks[0]!.locked = true));
+    expect(execute(s0, "Dividir", splitClips(["c_2"], 3_000_000, {}))).toBe(s0);
+  });
+});
+
+describe("deleteClips", () => {
+  it("apaga deixando o espaço", () => {
+    const s = execute(small(), "Apagar", deleteClips(["c_2"]));
+    expect(spans(track(s.project)).map((x) => [x[0], x[1]])).toEqual([["c_1", 0], ["c_3", 6_000_000]]);
+  });
+
+  it("ripple fecha o espaço só na trilha afetada", () => {
+    const s0 = linkedProject();
+    s0.project.tracks[1]!.clips.push(makeClip({ id: "c_b", start: 9_000_000, duration: 1_000_000 }));
+    const s = execute(s0, "Apagar fechando", deleteClips(["c_1"], true));
+    expect(spans(track(s.project)).map((x) => [x[0], x[1]])).toEqual([["c_2", 0], ["c_3", 4_000_000]]);
+    // A1 não teve nada apagado: não se move.
+    expect(track(s.project, "t_a1").clips.map((c) => c.start)).toEqual([2_000_000, 9_000_000]);
+    expect(valid(s.project)).toBe(true);
+  });
+
+  it("ripple com dois apagados na mesma trilha soma os deslocamentos", () => {
+    const s = execute(small(), "Apagar", deleteClips(["c_1", "c_2"], true));
+    expect(track(s.project).clips.map((c) => [c.id, c.start])).toEqual([["c_3", 1_000_000]]);
+  });
+
+  it("remove transições que apontavam para o clipe apagado", () => {
+    const s0 = small();
+    s0.project.tracks[0]!.transitions.push({ id: "x_1", type: "dissolve", fromClipId: "c_1", toClipId: "c_2", duration: 500_000 });
+    const s = execute(s0, "Apagar", deleteClips(["c_2"]));
+    expect(track(s.project).transitions).toEqual([]);
+  });
+});
+
+describe("clearRange", () => {
+  const run = (from: number, to: number) => {
+    const t = structuredClone(track(makeSmallProject()));
+    let n = 0;
+    clearRange(t, from, to, () => `novo_${++n}`);
+    expect(trackProblems(t)).toEqual([]);
+    return spans(t);
+  };
+
+  it("intervalo vazio não muda nada", () => {
+    expect(run(5_000_000, 6_000_000)).toEqual(spans(track(makeSmallProject())));
+  });
+
+  it("remove o que está dentro e apara as pontas", () => {
+    expect(run(1_000_000, 6_500_000)).toEqual([
+      ["c_1", 0, 1_000_000, 0],
+      ["c_3", 6_500_000, 1_500_000, 1_000_000], // speed 2: 0,5 s de timeline = 1 s de fonte
+    ]);
+  });
+
+  it("intervalo no meio de um clipe corta em dois", () => {
+    expect(run(3_000_000, 4_000_000)).toEqual([
+      ["c_1", 0, 2_000_000, 0],
+      ["c_2", 2_000_000, 1_000_000, 10_000_000],
+      ["novo_1", 4_000_000, 1_000_000, 12_000_000],
+      ["c_3", 6_000_000, 2_000_000, 0],
+    ]);
+  });
+});
+
+describe("copyClips / pasteClips", () => {
+  it("cola no playhead mantendo distâncias e trilhas, sobrescrevendo o caminho", () => {
+    const s0 = linkedProject();
+    const clip = copyClips(s0.project, withLinked(s0.project, ["c_2"]));
+    expect(clip.map((e) => e.trackId).sort()).toEqual(["t_a1", "t_v1"]);
+    const s = execute(s0, "Colar", pasteClips(clip, 6_000_000, ["p_1", "p_2"]));
+    const v = track(s.project);
+    expect(v.clips.map((c) => [c.id, c.start, c.duration])).toEqual([
+      ["c_1", 0, 2_000_000],
+      ["c_2", 2_000_000, 3_000_000],
+      [expect.stringMatching(/^p_/), 6_000_000, 3_000_000], // c_3 (6–8 s) foi sobrescrito
+    ]);
+    const pastedV = v.clips[2]!;
+    const pastedA = track(s.project, "t_a1").clips.find((c) => c.start === 6_000_000)!;
+    expect(pastedV.linkGroup).toBe(pastedA.linkGroup);
+    expect(pastedV.linkGroup).not.toBe("g_1");
+    expect(valid(s.project)).toBe(true);
+    expect(undo(s).project).toEqual(s0.project);
+  });
+
+  it("trilha travada ou removida é pulada", () => {
+    const s0 = small();
+    const entries = copyClips(s0.project, ["c_1"]);
+    const locked = execute(s0, "travar", (d) => void (d.tracks[0]!.locked = true));
+    expect(execute(locked, "Colar", pasteClips(entries, 10_000_000, ["x"]))).toBe(locked);
+    expect(execute(s0, "Colar", pasteClips([{ ...entries[0]!, trackId: "t_sumiu" }], 0, ["x"]))).toBe(s0);
+  });
+
+  it("duplicar = colar logo depois do fim da seleção", () => {
+    const s0 = small();
+    const entries = copyClips(s0.project, ["c_1", "c_2"]);
+    const s = execute(s0, "Duplicar", pasteClips(entries, 5_000_000, ["d_1", "d_2"]));
+    expect(track(s.project).clips.map((c) => [c.id, c.start, c.duration])).toEqual([
+      ["c_1", 0, 2_000_000],
+      ["c_2", 2_000_000, 3_000_000],
+      ["d_1", 5_000_000, 2_000_000],
+      ["d_2", 7_000_000, 3_000_000],
+    ]);
+  });
+});
+
+describe("withLinked / nextCut", () => {
+  it("withLinked ignora ids que não existem", () => {
+    expect(withLinked(makeSmallProject(), ["c_1", "c_zz"])).toEqual(["c_1"]);
+  });
+
+  it("nextCut anda pelos inícios e fins de clipes", () => {
+    const p = makeSmallProject();
+    expect(nextCut(p, 0, 1)).toBe(2_000_000);
+    expect(nextCut(p, 5_500_000, 1)).toBe(6_000_000);
+    expect(nextCut(p, 5_500_000, -1)).toBe(5_000_000);
+    expect(nextCut(p, 8_000_000, 1)).toBeUndefined();
+    expect(nextCut(p, 0, -1)).toBeUndefined();
+    expect(clipAt(track(p), 3_000_000)?.id).toBe("c_2");
+  });
+});

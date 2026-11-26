@@ -89,3 +89,9 @@ As decisões de stack do plano técnico (seção 2) valem como D-001 a D-006.
 - Decisão: pôster em JPEG 320 px de largura a 10% da duração (o encoder mjpeg é nativo do FFmpeg; WebP fica para as folhas de miniaturas). Hash parcial FNV-1a 64 do tamanho + primeiros e últimos 64 KB (sem dependência; não é criptográfico, só nomeia cache). VFR quando `r_frame_rate` e `avg_frame_rate` diferem mais de 0,2%. "Decodificável" é perguntado ao WebCodecs no Worker (`media:check`), não deduzido do codec pelo ffprobe.
 - Descartadas: hash do arquivo inteiro (lento em 4K), detectar VFR contando quadros (ffprobe -count_frames lê o arquivo todo), tabela fixa de codecs suportados.
 - Consequências: a heurística de VFR pode errar em arquivos com duração mal declarada; a conversão para taxa constante entra com os proxies.
+
+### D-015 · 2026-11-26 · Regras de edição da T1.06a
+- Contexto: comportamentos que variam entre editores e que uma sessão futura poderia mudar sem querer.
+- Decisão: colar e duplicar sobrescrevem o que estiver no caminho (clearRange), nas trilhas de origem; dividir (S) age só nos clipes selecionados (e nos ligados), como no plano; apagar fechando o espaço (ripple) move só as trilhas onde algo foi apagado; selecionar um clipe seleciona os ligados; a área de transferência é interna do app.
+- Descartadas: colar inserindo e empurrando o resto (ripple insert), dividir todas as trilhas sem seleção, ripple sincronizado em todas as trilhas.
+- Consequências: apagar com ripple um clipe só de vídeo pode dessincronizar outras trilhas; ripple em todas as trilhas e inserção podem entrar na Fase 3 (ripple, roll, slip).
