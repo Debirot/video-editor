@@ -10,6 +10,7 @@
  */
 import type { PcmChunk } from "@/engine/messages";
 import type { Us } from "@/lib/time";
+import { envelopePoints, fadeFactor } from "@/engine/audio/envelope";
 
 const LEAD_S = 0.2;
 /** Folga mínima ao reagendar o início quando o primeiro bloco chega atrasado. */
@@ -24,21 +25,6 @@ export interface AudioHost {
   sendClock: (t: Us, at: number) => void;
   /** Fim da timeline (não pede além disso). */
   duration: () => Us;
-}
-
-/** Fator de fade (0..1) no instante t de um clipe. */
-export function fadeFactor(t: Us, c: Pick<PcmChunk, "clipStart" | "clipEnd" | "fadeIn" | "fadeOut">): number {
-  let f = 1;
-  if (c.fadeIn > 0 && t < c.clipStart + c.fadeIn) f = Math.min(f, Math.max(0, (t - c.clipStart) / c.fadeIn));
-  if (c.fadeOut > 0 && t > c.clipEnd - c.fadeOut) f = Math.min(f, Math.max(0, (c.clipEnd - t) / c.fadeOut));
-  return f;
-}
-
-/** Pontos (tempo na timeline) onde o envelope muda de inclinação dentro de [start, end]. */
-export function envelopePoints(c: Pick<PcmChunk, "start" | "end" | "clipStart" | "clipEnd" | "fadeIn" | "fadeOut">): Us[] {
-  const pts = new Set<Us>([c.start, c.end]);
-  for (const p of [c.clipStart + c.fadeIn, c.clipEnd - c.fadeOut]) if (p > c.start && p < c.end) pts.add(p);
-  return [...pts].sort((a, b) => a - b);
 }
 
 export class AudioOut {

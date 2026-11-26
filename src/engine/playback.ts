@@ -12,8 +12,9 @@
 import type { Project } from "@/project/types";
 import { projectDuration } from "@/project/queries";
 import { frameToUs, type Us } from "@/lib/time";
-import { Compositor, fitContain } from "./compositor/compositor";
-import { PicturePool, type Picture } from "./decode/pool";
+import { Compositor } from "./compositor/compositor";
+import { drawLayers, gatherPictures } from "./compose";
+import { PicturePool } from "./decode/pool";
 import { frameStart, videoLayersAt } from "./evaluate";
 import { openFrameCount } from "./frames";
 import type { FromWorker, PreviewQuality, PreviewSource } from "./messages";
@@ -175,30 +176,13 @@ export class Playback {
     try {
       const project = this.project;
       const layers = videoLayersAt(project, t);
-      // Busca todas as imagens antes de desenhar: o quadro inteiro aparece de uma vez.
-      const used = new Map<string, number>();
-      const pictures: (Picture | null)[] = [];
-      for (const layer of layers) {
-        const slot = used.get(layer.mediaId) ?? 0;
-        used.set(layer.mediaId, slot + 1);
-        try {
-          pictures.push(await this.pool.picture(layer.mediaId, layer.sourceTime, slot));
-        } catch (e) {
-          pictures.push(null);
-          if (!this.warned.has(layer.mediaId)) {
-            this.warned.add(layer.mediaId);
-            this.post({ type: "error", context: "preview", message: e instanceof Error ? e.message : String(e) });
-          }
-        }
-      }
-      const c = this.compositor;
-      c.clear(project.settings.background);
-      layers.forEach((layer, i) => {
-        const pic = pictures[i];
-        if (!pic) return;
-        const rect = fitContain(pic.width, pic.height, c.width, c.height);
-        c.drawFrame(pic.image, rect, layer.opacity, layer.kind === "image");
+      const pictures = await gatherPictures(this.pool, layers, (mediaId, e) => {
+        if (this.warned.has(mediaId)) return;
+        this.warned.add(mediaId);
+        this.post({ type: "error", context: "preview", message: e instanceof Error ? e.message : String(e) });
       });
+      const c = this.compositor;
+      drawLayers(c, project.settings.background, layers, pictures);
       c.gl.flush();
     } finally {
       this.rendering = false;

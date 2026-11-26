@@ -13,6 +13,7 @@ import { LibraryPanel, LibraryRail, type LibraryTab } from "@/panels/library/Lib
 import { PreviewPanel } from "@/panels/preview/PreviewPanel";
 import { InspectorPanel } from "@/panels/inspector/InspectorPanel";
 import { TimelinePanel } from "@/panels/timeline/TimelinePanel";
+import { ExportDialog } from "@/panels/ExportDialog";
 import { isTauri, onFileDrop } from "@/lib/ipc";
 import { importPaths, listenForJobs } from "./importMedia";
 import { runtimeStore, useRuntime } from "./mediaRuntime";
@@ -106,6 +107,7 @@ export function Layout() {
           {fileName(mediaDrag.media.path)}
         </div>
       )}
+      <ExportDialog />
       <TopBar inspectorOpen={inspectorOpen} onToggleInspector={toggleInspector} />
 
       <ResizableGroup orientation="vertical" className="min-h-0 flex-1" {...vertical}>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { envelopePoints, fadeFactor } from "./audio";
+import { envelopePoints, fadeFactor } from "./envelope";
 
 const clip = { clipStart: 0, clipEnd: 10_000_000, fadeIn: 1_000_000, fadeOut: 2_000_000 };
 

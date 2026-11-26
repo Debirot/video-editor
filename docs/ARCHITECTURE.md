@@ -151,6 +151,22 @@ src/app/audio.ts (thread da interface, Web Audio)       audioWorker.ts (Worker s
 - Em velocidades diferentes de 1× (J/L) o som fica mudo e o Worker de vídeo usa o próprio relógio.
 - Mudanças no projeto durante a reprodução reiniciam o som do ponto atual (agrupadas em 120 ms).
 
+### Exportação (T1.10)
+```
+ExportDialog → exportFlow.startExport: diálogo de salvar → begin_export (Rust abre <arquivo>.partial)
+  → Worker: exportProject
+       vídeo: videoLayersAt → gatherPictures (PicturePool próprio, originais) → drawLayers (compose.ts,
+              o mesmo do preview) → VideoFrame(canvas) → VideoEncoder → EncodedVideoPacketSource
+       áudio: audioSegmentsIn → AudioPool → mixInto (48 kHz estéreo, envelope.ts) → AudioEncoder (AAC; Opus
+              como reserva) → EncodedAudioPacketSource, em blocos de 1 s à frente do vídeo
+       Mp4OutputFormat → StreamTarget (PUT media://.../write/<id>?pos=)
+  → export:done → finish_export (renomeia) | export:cancelled ou erro → cancel_export (apaga)
+```
+- Uma fila de mux por faixa: o muxer intercala as faixas e pode segurar o vídeo até chegar o áudio.
+- Falha de gravação avisa o laço na hora (a exportação termina com erro, nunca fica presa).
+- Número de quadros = teto(duração × FPS): o último quadro parcial entra.
+- Em navegadores sem `OfflineAudioContext` no Worker (todos), a mixagem é feita em código (`mix.ts`).
+
 ### Salvar e abrir (T1.09)
 - `src/app/projectFile.ts`: salvar (primeira vez pede o local), salvar como, abrir, novo, pergunta
   "Salvar / Não salvar / Cancelar" ao descartar alterações e ao fechar a janela (`onCloseRequested`;

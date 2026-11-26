@@ -5,7 +5,8 @@
 import { Compositor } from "./compositor/compositor";
 import { pickDecoderConfig } from "./decode/decoder";
 import { openInput } from "./decode/source";
-import { ExportCancelled } from "./export";
+import { ExportCancelled, exportCapabilities } from "./export";
+import { exportProject } from "./exportProject";
 import { openFrameCount } from "./frames";
 import type { DecodeCheck, FromWorker, ToWorker } from "./messages";
 import { exportProof, openSource, playProof } from "./proof";
@@ -30,6 +31,7 @@ const previewPlayback = new Playback((msg) => post(msg));
 let source: Awaited<ReturnType<typeof openSource>> | null = null;
 let playback: AbortController | null = null;
 let exporting: AbortController | null = null;
+let projectExport: AbortController | null = null;
 
 async function handle(msg: ToWorker): Promise<void> {
   switch (msg.type) {
@@ -128,6 +130,35 @@ async function handle(msg: ToWorker): Promise<void> {
       return;
     case "preview:quality":
       previewPlayback.setQuality(msg.scale);
+      return;
+
+    case "export:capabilities":
+      post({ type: "export:caps", requestId: msg.requestId, caps: await exportCapabilities(msg.width, msg.height, msg.fps) });
+      return;
+    case "export:start": {
+      projectExport?.abort();
+      const controller = new AbortController();
+      projectExport = controller;
+      let lastPost = 0;
+      try {
+        const result = await exportProject(msg.project, msg.sources, msg.settings, msg.target, controller.signal, (done, total) => {
+          const now = performance.now();
+          if (now - lastPost > 100 || done === total) {
+            lastPost = now;
+            post({ type: "export:progress", done, total });
+          }
+        });
+        post({ type: "export:done", result });
+      } catch (e) {
+        if (e instanceof ExportCancelled) post({ type: "export:cancelled" });
+        else post({ type: "error", context: "exportar", message: errorMessage(e) });
+      } finally {
+        if (projectExport === controller) projectExport = null;
+      }
+      return;
+    }
+    case "export:cancel":
+      projectExport?.abort();
       return;
 
     case "media:check":

@@ -5,7 +5,16 @@
  * - preview: envia o projeto (a cada mudança) e o playhead (quando o usuário o move);
  *   recebe o tempo mostrado durante a reprodução e atualiza o viewStore.
  */
-import type { DecodeCheck, FromAudioWorker, FromWorker, PreviewSource, ToAudioWorker, ToWorker } from "@/engine/messages";
+import type {
+  DecodeCheck,
+  ExportCapabilities,
+  ExportSettings,
+  FromAudioWorker,
+  FromWorker,
+  PreviewSource,
+  ToAudioWorker,
+  ToWorker,
+} from "@/engine/messages";
 import { isTauri, mediaReadUrl } from "@/lib/ipc";
 import { projectStore } from "@/project/store";
 import type { Project } from "@/project/types";
@@ -19,6 +28,11 @@ let worker: Worker | null = null;
 let nextRequest = 1;
 const waiting = new Map<number, (r: DecodeCheck) => void>();
 const errorListeners = new Set<(message: string) => void>();
+const capsWaiting = new Map<number, (c: ExportCapabilities) => void>();
+
+/** Mensagens da exportação do projeto, para src/app/exportFlow.ts. */
+export type ExportEvent = Extract<FromWorker, { type: "export:progress" | "export:done" | "export:cancelled" }> | { type: "export:error"; message: string };
+let exportListener: ((e: ExportEvent) => void) | null = null;
 
 /** Último playhead vindo do Worker: mudanças iguais a ele não viram seek (evita eco). */
 let enginePlayhead: number | null = null;
@@ -65,8 +79,18 @@ function getWorker(): Worker {
       case "preview:stats":
         viewStore.setState({ droppedFrames: msg.droppedFrames, openFrames: msg.openFrames });
         return;
+      case "export:caps":
+        capsWaiting.get(msg.requestId)?.(msg.caps);
+        capsWaiting.delete(msg.requestId);
+        return;
+      case "export:progress":
+      case "export:done":
+      case "export:cancelled":
+        exportListener?.(msg);
+        return;
       case "error":
-        errorListeners.forEach((l) => l(msg.message));
+        if (msg.context === "exportar") exportListener?.({ type: "export:error", message: msg.message });
+        else errorListeners.forEach((l) => l(msg.message));
         return;
     }
   };
@@ -154,6 +178,27 @@ export function attachPreviewCanvas(canvas: HTMLCanvasElement): void {
     }
     if (s.quality !== prev.quality) send({ type: "preview:quality", scale: s.quality });
   });
+}
+
+// ─── Exportação ──────────────────────────────────────────────────────────────
+
+export function exportCapabilities(width: number, height: number, fps: { num: number; den: number }): Promise<ExportCapabilities> {
+  const requestId = nextRequest++;
+  return new Promise((resolve) => {
+    capsWaiting.set(requestId, resolve);
+    send({ type: "export:capabilities", requestId, width, height, fps });
+  });
+}
+
+/** Exporta o projeto para a rota de escrita `targetUrl` do media://. Eventos vão para `listener`. */
+export function startProjectExport(project: Project, settings: ExportSettings, targetUrl: string, listener: (e: ExportEvent) => void): void {
+  pause();
+  exportListener = listener;
+  send({ type: "export:start", project, sources: sourcesOf(project), settings, target: { kind: "url", url: targetUrl } });
+}
+
+export function cancelProjectExport(): void {
+  send({ type: "export:cancel" });
 }
 
 // ─── Controles de reprodução ─────────────────────────────────────────────────

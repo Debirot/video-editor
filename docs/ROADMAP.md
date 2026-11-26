@@ -177,20 +177,33 @@ Pronto quando:
 - [ ] No Windows: salvar, fechar o app (pergunta se houver alterações), abrir pelos recentes
 Fora do escopo: autosave e versões, religar mídia ausente (Fase 2).
 
-### T1.10 Exportação · próxima
-MP4 H.264, H.265 quando disponível, resolução, FPS, bitrate, progresso e cancelamento.
-Áudio com OfflineAudioContext + AudioEncoder. Reaproveita export.ts.
+### T1.10 Exportação · concluída
+Objetivo: MP4 H.264 (H.265 quando disponível), resolução, FPS, bitrate, áudio, progresso e cancelamento.
+Arquivos: src/engine/{export,exportProject,compose,playback,messages,worker}.ts, src/engine/audio/{mix,envelope}.ts,
+src/app/{exportFlow,exportPresets,engine,audio,shortcuts,editActions,Layout}.ts(x),
+src/components/ui/dialog.tsx, src/panels/{ExportDialog,TopBar}.tsx
+Pronto quando:
+- [x] mix.ts testado: reamostragem 44,1 → 48 kHz, mono → estéreo, ganho, fades, início no meio, speed, corte de picos
+- [x] exportPresets testado: resoluções na proporção (pares), FPS do projeto primeiro, taxa de bits, tamanho estimado
+- [x] Preview e exportação usam a mesma composição (compose.ts)
+- [x] No navegador: projeto com vídeo vertical + música exportado em 720p30: ffprobe confirma H.264 1280×720,
+      30 fps, 360 quadros, 12,000 s (= timeline), áudio 48 kHz estéreo com níveis coerentes com a mixagem;
+      quadro em 5 s é o quadro certo da fonte; teclado responde em ~15 ms durante a exportação;
+      cancelar apaga o parcial; falha de gravação vira erro (não trava) e apaga o parcial
+- [ ] No Windows: exportar com AAC e H.264 por hardware; abrir no VLC e no player do Windows
+Fora do escopo: presets (YouTube, Reels…) e exportador via FFmpeg (Fase 3), pausar tarefas de baixa prioridade (não há ainda).
 
 ### Critérios de conclusão da Fase 1 (Portão 1)
 - [ ] A prova técnica roda num notebook com GPU integrada e num PC com GPU dedicada
 - [ ] Importar três vídeos (4K H.264, vertical de celular, 1080p HEVC) e montar 2 min com 2 trilhas de vídeo e 2 de áudio
-- [ ] Cortar, dividir, mover e encaixar funcionam por mouse e por atalho
+- [x] Cortar, dividir, mover e encaixar funcionam por mouse e por atalho
 - [x] Um teste aplica 50 comandos e desfaz todos, voltando a um projeto idêntico ao inicial
-- [ ] Preview 1080p de uma trilha sem queda perceptível; áudio a menos de um quadro do vídeo após 2 min
+- [x] Preview 1080p de uma trilha sem queda perceptível (Windows: 1 quadro perdido em 10 s)
+- [ ] Áudio a menos de um quadro do vídeo após 2 min (falta medir no Windows)
 - [ ] MP4 exportado abre no VLC e no player do Windows; duração igual à timeline (±1 quadro); resolução e FPS confirmados pelo ffprobe
 - [ ] A interface responde durante a exportação; cancelar apaga o arquivo parcial
-- [ ] O contador de VideoFrames abertos volta a zero ao parar a reprodução
-- [ ] npm test, cargo test e typecheck passando
+- [x] O contador de VideoFrames abertos volta a zero ao parar a reprodução
+- [x] npm test, cargo test e typecheck passando
 
 ---
 

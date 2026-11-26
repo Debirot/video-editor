@@ -38,7 +38,8 @@ export type Action =
   | "save"
   | "saveAs"
   | "open"
-  | "newProject";
+  | "newProject"
+  | "export";
 
 export const SHORTCUTS: Record<string, Action> = {
   "Ctrl+Z": "undo",
@@ -76,6 +77,7 @@ export const SHORTCUTS: Record<string, Action> = {
   "Ctrl+Shift+S": "saveAs",
   "Ctrl+O": "open",
   "Ctrl+N": "newProject",
+  "Ctrl+E": "export",
 };
 
 export interface KeyLike {

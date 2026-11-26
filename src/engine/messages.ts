@@ -54,10 +54,23 @@ export interface ExportSettings {
   fps: { num: number; den: number };
   bitrate: number;
   durationUs: number;
+  /** Codec de vídeo pedido (padrão H.264). */
+  videoCodec?: "avc" | "hevc";
+  /** Incluir faixa de áudio (AAC 48 kHz estéreo). */
+  audio?: boolean;
+}
+
+/** O que este WebView consegue codificar, para o diálogo de exportação. */
+export interface ExportCapabilities {
+  avc: boolean;
+  hevc: boolean;
+  aac: boolean;
 }
 
 export interface ExportResult {
   codec: string;
+  /** Codec de áudio usado, ou null sem áudio. */
+  audioCodec: string | null;
   hardwareEncode: HardwarePreference;
   frames: number;
   bytes: number;
@@ -99,7 +112,17 @@ export type ToWorker =
   | { type: "preview:clock"; t: number; at: number }
 
   | { type: "preview:pause" }
-  | { type: "preview:quality"; scale: PreviewQuality };
+  | { type: "preview:quality"; scale: PreviewQuality }
+  // Exportação do projeto (T1.10)
+  | { type: "export:capabilities"; requestId: number; width: number; height: number; fps: { num: number; den: number } }
+  | {
+      type: "export:start";
+      project: Project;
+      sources: Record<string, PreviewSource>;
+      settings: ExportSettings;
+      target: OutputRef;
+    }
+  | { type: "export:cancel" };
 
 /** Onde o Worker lê cada mídia do projeto (URL do media://). */
 export interface PreviewSource {
@@ -146,5 +169,9 @@ export type FromWorker =
   /** Tempo mostrado no preview (início de quadro). Enviado a cada quadro durante a reprodução. */
   | { type: "preview:time"; t: number; playing: boolean }
   | { type: "preview:stats"; droppedFrames: number; openFrames: number; renderMs: number }
+  | { type: "export:caps"; requestId: number; caps: ExportCapabilities }
+  | { type: "export:progress"; done: number; total: number }
+  | { type: "export:done"; result: ExportResult }
+  | { type: "export:cancelled" }
 
   | { type: "error"; context: string; message: string };

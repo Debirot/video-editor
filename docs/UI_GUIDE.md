@@ -100,7 +100,10 @@ Componentes de painel só montam peças daqui. Se falta uma peça, ela é criada
   esquerdo ("Proxy" em `danger`, "VFR" em `accent`, com tooltip explicando), nome truncado.
   Enquanto o pôster é gerado, um spinner; sem pôster (áudio), o ícone do tipo.
 - **Aviso de erro** (`ImportErrors`): borda `danger`, título com contagem, lista com nome e motivo, botão fechar.
-- **Diálogo**: entra com a exportação (T1.10).
+- **Diálogo** (`src/components/ui/dialog.tsx`): título (14 px), descrição curta em `text-2`, campos em
+  duas colunas (`Field`: rótulo de 120 px à esquerda, controle e dica embaixo), rodapé com ações à
+  direita e a principal em `accent` por último. Clique fora não fecha; Esc fecha (menos durante a exportação).
+  Selects são nativos com os tokens (`Select`).
 - **Arrastar arquivos**: a janela inteira mostra "Solte para importar" com borda tracejada `accent`.
 
 ## Timeline
@@ -143,7 +146,7 @@ Botões sem função ainda aparecem desabilitados com tooltip "(em breve)".
 | M | Adicionar marcador | Fase 2 |
 | Ctrl + S / Ctrl + Shift + S | Salvar / salvar como | T1.09 |
 | Ctrl + O / Ctrl + N | Abrir / novo projeto | T1.09 |
-| Ctrl + E | Exportar | T1.10 |
+| Ctrl + E | Exportar (abre o diálogo) | T1.10 |
 
 Seleção: clique num clipe seleciona ele e o clipe ligado (vídeo + áudio do mesmo arquivo);
 Ctrl + clique soma ou tira; clique em área vazia limpa; arrastar na área vazia desenha um

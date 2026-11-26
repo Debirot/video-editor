@@ -15,6 +15,7 @@ import type { Action } from "./shortcuts";
 import { viewStore } from "./viewStore";
 import { pause, shuttle, togglePlay } from "./engine";
 import { newProject, openProjectDialog, saveProject, saveProjectAs } from "./projectFile";
+import { openExportDialog } from "./exportFlow";
 
 function viewport(): Viewport {
   const v = viewStore.getState();
@@ -96,6 +97,9 @@ export function runAction(action: Action): void {
       return;
     case "newProject":
       void newProject();
+      return;
+    case "export":
+      if (isTauri()) openExportDialog();
       return;
     case "togglePlay":
       return togglePlay();

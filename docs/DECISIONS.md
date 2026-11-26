@@ -107,3 +107,9 @@ As decisões de stack do plano técnico (seção 2) valem como D-001 a D-006.
 - Decisão: decodificação em um Worker de áudio separado (AudioSampleSink do Mediabunny), PCM transferido sem cópia; agendamento por AudioBufferSourceNode na interface, em blocos (1 s, depois 4 s, ~6 s à frente); correção do relógio do vídeo a cada 200 ms por getOutputTimestamp; sem som fora de 1×; velocidade de clipe muda também o tom (playbackRate) até a Fase 3.
 - Descartadas: decodificar no Worker de vídeo (o teste mostrou blocos 2 s atrasados com 4K em software); AudioWorklet com buffer circular (mais código, mesma latência para o preview); decodificar o arquivo inteiro (memória).
 - Consequências: o primeiro play tem ~0,2 a 0,5 s de latência; emendas entre blocos são agendadas no tempo exato e não devem estalar, mas isso precisa ser ouvido no Windows.
+
+### D-018 · 2026-11-26 · Exportação do projeto
+- Contexto: o plano previa OfflineAudioContext para o áudio final, mas ele não existe em Workers; o primeiro teste com duas faixas travou.
+- Decisão: mixagem em código no Worker (mix.ts: interpolação linear para 48 kHz estéreo, mesmo envelope do preview), AudioEncoder AAC com Opus como reserva; uma fila de mux por faixa; falha de gravação aborta na hora; composição compartilhada com o preview (compose.ts); diálogo com `@radix-ui/react-dialog` (base do Dialog do shadcn/ui) e selects nativos.
+- Descartadas: exportar o áudio na thread da interface com OfflineAudioContext (bloquearia a interface e duplicaria a mixagem); fila de mux única (deadlock com duas faixas); `@radix-ui/react-select` (mais uma dependência para um select simples).
+- Consequências: reamostragem linear é suficiente para a v1; um reamostrador de melhor qualidade pode entrar na Fase 3 se houver aliasing audível.

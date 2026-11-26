@@ -13,6 +13,8 @@ import { renameProject } from "@/project/commands/project";
 import { pendingTasks, useRuntime } from "@/app/mediaRuntime";
 import { openProjectDialog, saveProject, useFile } from "@/app/projectFile";
 import { baseName } from "@/lib/paths";
+import { openExportDialog } from "@/app/exportFlow";
+import { projectDuration } from "@/project/queries";
 import { isTauri } from "@/lib/ipc";
 
 export function TopBar({ inspectorOpen, onToggleInspector }: { inspectorOpen: boolean; onToggleInspector: () => void }) {
@@ -25,6 +27,7 @@ export function TopBar({ inspectorOpen, onToggleInspector }: { inspectorOpen: bo
   const tasks = useRuntime(pendingTasks);
   const dirty = useProject((s) => s.revision !== s.savedRevision);
   const dir = useFile((s) => s.dir);
+  const canExport = useProject((s) => projectDuration(s.project) > 0);
 
   return (
     <header className="flex h-[var(--topbar-height)] shrink-0 items-center gap-1 border-b border-border bg-bg-1 px-3">
@@ -74,8 +77,8 @@ export function TopBar({ inspectorOpen, onToggleInspector }: { inspectorOpen: bo
             <Settings />
           </Button>
         </Tip>
-        <Tip label="Exportar (em breve)" shortcut="Ctrl+E">
-          <Button variant="accent" className="ml-2" disabled>
+        <Tip label={canExport ? "Exportar vídeo" : "Coloque clipes na timeline para exportar"} shortcut="Ctrl+E">
+          <Button variant="accent" className="ml-2" disabled={!canExport || !isTauri()} onClick={openExportDialog}>
             <Download /> Exportar
           </Button>
         </Tip>
