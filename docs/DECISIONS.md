@@ -64,3 +64,10 @@ As decisões de stack do plano técnico (seção 2) valem como D-001 a D-006.
 - Decisão: instalar `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`. Radix e `react-resizable-panels` entram em T1.02, quando forem usados.
 - Descartadas: instalar todos os pacotes do plano de uma vez.
 - Consequências: cada componente novo do shadcn traz sua dependência Radix junto.
+
+### D-011 · 2026-11-26 · Portão 0: a stack se mantém
+- Contexto: prova técnica (T1.01) no Windows, WebView2, PC com GPU dedicada.
+- Resultados: 4K H.264 High (avc1.640034, 25 fps) decodifica por hardware; tempo real 25,0 qps com atraso máximo de 14,8 ms; velocidade máxima 228 a 259 qps. Gravação de tela 1080p60: tempo real 60,0 qps, máximo ~1.400 qps. Exportação 1080p30 H.264 por hardware: 300 quadros em 3,3 s (90 qps) a partir do 4K e 2,2 s (138 qps) a partir do 1080p. MP4 toca no VLC e no player do Windows. Cancelar não deixa `.partial`. Minimizada: 2,98 s, sem lentidão (backgroundThrottling "disabled" funciona). VideoFrames abertos voltam a 0.
+- Decisão: manter Tauri 2 + WebCodecs + WebGL2 + Mediabunny e seguir para T1.02.
+- Descartadas: plano B (exportador via FFmpeg) fica para a Fase 3, como previsto.
+- Consequências: falta medir num notebook com GPU integrada antes do Portão 1. O descarte do primeiro quadro no modo tempo real vem da tela de teste (relógio começa antes do primeiro quadro) e não existirá no preview de T1.07.

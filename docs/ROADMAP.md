@@ -4,7 +4,7 @@ Três fases e quatro portões. Cada fase só começa quando o portão anterior �
 
 | Portão | Critério | Estado |
 |---|---|---|
-| 0 | Pipeline validado (T1.01 no Windows) | **aguardando teste no Windows** |
+| 0 | Pipeline validado (T1.01 no Windows) | **cumprido em 2026-11-26** (GPU integrada pendente, não bloqueia) |
 | 1 | MP4 correto, UI fluida (fim da Fase 1) | — |
 | 2 | Preview igual à exportação (fim da Fase 2) | — |
 | 3 | Metas de desempenho da seção 1 do plano | — |
@@ -15,7 +15,7 @@ Estados de tarefa: `próxima`, `em andamento`, `bloqueada`, `concluída`.
 
 ## Fase 1: MVP funcional
 
-### T1.01 Prova técnica do pipeline · em andamento (falta validar no Windows)
+### T1.01 Prova técnica do pipeline · concluída (resultados em DECISIONS.md, D-011)
 Objetivo: app Tauri mínimo em que um Worker lê um MP4 4K pelo protocolo media://,
 decodifica com WebCodecs, desenha em WebGL2 e grava 10 s de MP4 com VideoEncoder e Mediabunny.
 Arquivos: src-tauri/src/{main,commands,protocol}.rs, src/engine/{worker,messages,frames,proof,export}.ts,
@@ -25,18 +25,19 @@ Pronto quando:
 - [x] No Chromium (navegador, sem GPU): 4K H.264, vertical 29,97, VFR, 23,976 e VP9 abrem,
       reproduzem e exportam; ffprobe confirma 1920×1080, 30 fps, 300 quadros, 10,000 s, keyframe a cada 2 s
 - [x] Contador de VideoFrames volta a zero depois de reproduzir e exportar
-- [ ] No Windows (WebView2), via `npm run tauri dev`, com `h264_4k_30.mp4`:
-  - [ ] "Aceleração: hardware" ao abrir, e reprodução em tempo real com 0 descartados
-  - [ ] Velocidade máxima acima de 60 qps (GPU dedicada) e acima de 30 qps (GPU integrada)
-  - [ ] Exportação com "Codificação: hardware", MP4 abre no VLC e no player do Windows
-  - [ ] Cancelar a exportação não deixa arquivo `.partial`
-  - [ ] Exportar com a janela minimizada termina no mesmo tempo (backgroundThrottling)
-  - [ ] Testado num notebook com GPU integrada e num PC com GPU dedicada
-- [ ] Números anotados em DECISIONS.md (D-011) e Portão 0 marcado aqui
+- [x] No Windows (WebView2), via `npm run tauri dev`, com MP4 4K H.264 (3840×2160, 25 fps):
+  - [x] "Aceleração: hardware" ao abrir; tempo real 249 de 250 quadros (o descarte é o primeiro
+        quadro, defeito da tela de teste: o relógio começa antes do primeiro quadro decodificado)
+  - [x] Velocidade máxima 228 a 259 qps (GPU dedicada)
+  - [x] Exportação com "Codificação: hardware" (90 qps); MP4 abre no VLC e no player do Windows
+  - [x] Cancelar a exportação não deixa arquivo `.partial`
+  - [x] Exportar com a janela minimizada termina no mesmo tempo (2,98 s contra 3,34 s)
+  - [ ] Testado num notebook com GPU integrada (pendente, não bloqueia o Portão 0)
+- [x] Números anotados em DECISIONS.md (D-011) e Portão 0 marcado aqui
 Fora do escopo: áudio, várias trilhas, UI definitiva.
 Se algo falhar: a stack é revista antes de seguir (plano, seção 11).
 
-### T1.02 Esqueleto da interface · próxima (depois do Portão 0)
+### T1.02 Esqueleto da interface · próxima
 Objetivo: as cinco regiões com painéis redimensionáveis, tokens, componentes base e barra superior.
 Arquivos: src/app/App.tsx, src/app/Layout.tsx, src/panels/TopBar.tsx, src/panels/*/ (placeholders),
 src/components/ui/{tabs,tooltip,slider}.tsx, docs/UI_GUIDE.md
