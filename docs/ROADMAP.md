@@ -76,7 +76,8 @@ Pronto quando:
 - [x] Mídias importadas são registradas com allow_media; pôsteres servidos por media://.../cache/
 - [x] No navegador com Tauri simulado: importar mostra pôsteres, selo "Proxy" no HEVC (Chromium
       sem HEVC), selo "VFR", erros por arquivo, sem duplicar, busca, desfazer, "Solte para importar"
-- [ ] No Windows: importar 3 vídeos reais (4K H.264, vertical de celular, HEVC) pelo diálogo e arrastando
+- [x] No Windows: importar pelo botão e arrastando do Explorador funciona (validado em 2026-11-26).
+      Observação: arrastar não funciona se o app rodar como administrador (o Windows bloqueia).
 Fora do escopo: miniaturas da timeline, waveforms, proxies, conversão de VFR, bins.
 
 ### T1.05 Timeline · próxima
