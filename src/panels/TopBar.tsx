@@ -3,12 +3,14 @@
  * configurações e Exportar (o único botão em cor de destaque).
  */
 import { useState } from "react";
-import { Download, ListChecks, PanelRightClose, PanelRightOpen, Redo2, Settings, Undo2 } from "lucide-react";
+import { Download, ListChecks, Loader2, PanelRightClose, PanelRightOpen, Redo2, Settings, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tip } from "@/components/ui/tooltip";
+import { cn } from "@/lib/cn";
 import { useProject } from "@/app/useProject";
 import { projectStore } from "@/project/store";
 import { renameProject } from "@/project/commands/project";
+import { pendingTasks, useRuntime } from "@/app/mediaRuntime";
 
 export function TopBar({ inspectorOpen, onToggleInspector }: { inspectorOpen: boolean; onToggleInspector: () => void }) {
   const past = useProject((s) => s.history.past);
@@ -17,6 +19,7 @@ export function TopBar({ inspectorOpen, onToggleInspector }: { inspectorOpen: bo
   const { undo, redo } = projectStore.getState();
   const undoLabel = past.at(-1)?.label;
   const redoLabel = future[0]?.label;
+  const tasks = useRuntime(pendingTasks);
 
   return (
     <header className="flex h-[var(--topbar-height)] shrink-0 items-center gap-1 border-b border-border bg-bg-1 px-3">
@@ -36,10 +39,10 @@ export function TopBar({ inspectorOpen, onToggleInspector }: { inspectorOpen: bo
       </div>
 
       <div className="ml-auto flex items-center gap-1">
-        <Tip label="Nenhuma tarefa em segundo plano">
-          <Button variant="ghost" size="sm" aria-label="Tarefas em segundo plano">
-            <ListChecks />
-            <span className="tabular text-label">0</span>
+        <Tip label={tasks === 0 ? "Nenhuma tarefa em segundo plano" : `${tasks} ${tasks === 1 ? "tarefa" : "tarefas"} em andamento`}>
+          <Button variant="ghost" size="sm" aria-label="Tarefas em segundo plano" className={cn(tasks > 0 && "text-accent hover:text-accent")}>
+            {tasks > 0 ? <Loader2 className="animate-spin" /> : <ListChecks />}
+            <span className="tabular text-label">{tasks}</span>
           </Button>
         </Tip>
         <Tip label={inspectorOpen ? "Recolher inspetor" : "Mostrar inspetor"}>

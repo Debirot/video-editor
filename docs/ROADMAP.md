@@ -63,18 +63,23 @@ Pronto quando:
 - [x] normalizeProject preenche padrões, ordena clipes, recusa tempos não inteiros e schema mais novo
 - [x] Partes não alteradas do projeto mantêm a referência (seletores não re-renderizam)
 
-### T1.04 Importação · próxima
+### T1.04 Importação · concluída
 Objetivo: diálogo e arrastar arquivos, ffprobe no Rust, biblioteca com pôster.
-Arquivos: src-tauri/src/{media,ffmpeg,jobs}.rs, src-tauri/binaries/, src/project/commands/media.ts,
-src/panels/library/MediaLibrary.tsx, src/lib/ipc.ts
+Arquivos: src-tauri/src/{ffmpeg,media,jobs,cache,time,commands,protocol,main}.rs, scripts/ensure-ffmpeg.mjs,
+src/project/commands/media.ts, src/app/{importMedia,mediaRuntime,engine}.ts, src/engine/{messages,worker}.ts,
+src/panels/library/{LibraryPanel,MediaLibrary}.tsx, src/panels/TopBar.tsx, src/app/Layout.tsx, src/lib/ipc.ts
 Pronto quando:
-- ffmpeg.rs tem testes de montagem de argumentos (probe, pôster)
-- fingerprint (tamanho, mtime, hash parcial) testado
-- Importar 3 vídeos mostra pôsteres; detecta VFR e codec não decodificável (sugere proxy)
-- Mídias importadas são registradas com allow_media
-Fora do escopo: miniaturas da timeline, waveforms, proxies.
+- [x] ffmpeg.rs tem testes de montagem de argumentos (probe, pôster) e de leitura do JSON do ffprobe
+      (celular com rotação e VFR, 29,97, música com capa, PNG, arquivo inválido)
+- [x] fingerprint (tamanho, mtime, hash parcial) testado; fila testada (deduplicação e concorrência)
+- [x] Teste de integração com o ffmpeg de verdade: probe e pôster de um vídeo gerado
+- [x] Mídias importadas são registradas com allow_media; pôsteres servidos por media://.../cache/
+- [x] No navegador com Tauri simulado: importar mostra pôsteres, selo "Proxy" no HEVC (Chromium
+      sem HEVC), selo "VFR", erros por arquivo, sem duplicar, busca, desfazer, "Solte para importar"
+- [ ] No Windows: importar 3 vídeos reais (4K H.264, vertical de celular, HEVC) pelo diálogo e arrastando
+Fora do escopo: miniaturas da timeline, waveforms, proxies, conversão de VFR, bins.
 
-### T1.05 Timeline
+### T1.05 Timeline · próxima
 Canvas com régua, trilhas, clipes, playhead e zoom. Desenha só o visível, em requestAnimationFrame.
 
 ### T1.06 Edição

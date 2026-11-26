@@ -17,6 +17,11 @@ export default tseslint.config(
     },
   },
   {
+    // Scripts de desenvolvimento rodam no Node.
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: globals.node },
+  },
+  {
     // src/engine roda no Worker: não pode importar React nem painéis.
     files: ["src/engine/**/*.ts"],
     rules: {

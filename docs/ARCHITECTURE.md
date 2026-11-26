@@ -44,12 +44,21 @@ Wrappers em `src/lib/ipc.ts`; handlers em `src-tauri/src/commands.rs`.
 | `begin_export` | `path` (.mp4) | `id: u64` | T1.01 |
 | `finish_export` | `id` | bytes gravados | T1.01 |
 | `cancel_export` | `id` | — | T1.01 |
+| `import_media` | `paths[]` | `ImportOutcome[]` (ok com kind, fingerprint, probe, pôster; ou failed com erro) | T1.04 |
 
-Eventos (`job:progress`, `job:done`) entram com a fila de tarefas em T1.04.
+| Evento | Payload | Desde |
+|---|---|---|
+| `job:done` | `{ key, kind: "poster", mediaHash, ok, error, output }` | T1.04 |
+
+`job:progress` entra com os proxies. Arquivos arrastados para a janela chegam pelo
+`onDragDropEvent` do webview (`onFileDrop` em ipc.ts), porque o drop do HTML5 não dá caminhos.
 
 ### Interface ↔ Worker (postMessage)
-Tipos em `src/engine/messages.ts`. Hoje só existem as mensagens da prova técnica
-(`proof:*`). O preview real acrescenta `project`, `play`, `pause`, `seek` e `export`.
+Tipos em `src/engine/messages.ts`. Hoje existem as mensagens da prova técnica
+(`proof:*`, só na tela `?prova`) e `media:check` → `media:checked`, que lê o cabeçalho
+de um vídeo e diz se o WebCodecs decodifica (aviso de proxy na biblioteca). O cliente
+do app fica em `src/app/engine.ts`. O preview real acrescenta `project`, `play`, `pause`,
+`seek` e `export`.
 
 ### Worker ↔ arquivos (protocolo media://)
 Implementado em `src-tauri/src/protocol.rs`.
@@ -61,11 +70,27 @@ Implementado em `src-tauri/src/protocol.rs`.
   com um novo Range. Sem Range, arquivos até 8 MB vêm inteiros.
 - `PUT /write/<id>?pos=<n>`: grava um pedaço do MP4 em `<destino>.partial`.
   `finish_export` renomeia para o destino; `cancel_export` apaga o parcial.
+- `GET|HEAD /cache/<relativo>`: arquivos da pasta de cache do app (pôsteres), sem `..`.
 - CORS liberado (`*`), porque no Windows a página e o protocolo têm origens diferentes.
 
 ### Rust ↔ FFmpeg
-Processos filhos com `tokio::process`, progresso de `-progress pipe:1`, cancelamento
-matando o processo. Entra em T1.04.
+`src-tauri/src/ffmpeg.rs` monta todos os argumentos (funções testadas) e roda processos
+filhos com `tokio::process`, prioridade abaixo do normal e sem janela de console no Windows.
+Os binários são sidecars (`externalBin`); sem eles, cai para o `ffmpeg` do PATH.
+A fila (`jobs.rs`) limita a concorrência por prioridade (alta 4, média 2, baixa 1) e não
+repete tarefas com a mesma chave (`poster:<hash>`). Progresso por `-progress pipe:1` e
+cancelamento entram com os proxies.
+
+### Importação (T1.04)
+```
+diálogo ou drop → importPaths (src/app/importMedia.ts)
+  → import_media (Rust): fingerprint + ffprobe (até 4), allow_media, pôster na fila
+  → applyCommand("Importar N mídias", addMedia) — mídias repetidas (mesmo hash) são ignoradas
+  → Worker media:check em cada vídeo (decodifica? senão, selo "Proxy")
+  → job:done → pôster aparece (media://.../cache/media/<hash>/poster.jpg)
+```
+O que depende da máquina (pôster pronto, decodificável) fica em `src/app/mediaRuntime.ts`,
+indexado pelo hash, e não vai para o project.json.
 
 ## Pipeline de vídeo (validado na prova técnica)
 

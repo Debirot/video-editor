@@ -3,6 +3,7 @@
 //! Rotas:
 //! - `GET|HEAD /file/<caminho codificado>` lê um arquivo autorizado, com suporte a Range.
 //! - `PUT /write/<id>?pos=<n>` grava um pedaço do MP4 exportado na posição n.
+//! - `GET|HEAD /cache/<caminho relativo>` lê um arquivo da pasta de cache (pôsteres etc.).
 //! - `OPTIONS *` responde ao preflight de CORS (no Windows o WebView2 trata
 //!   `http://media.localhost` como outra origem).
 //!
@@ -95,6 +96,8 @@ pub fn resolve_range(header: Option<&str>, size: u64, max_chunk: u64) -> RangeSp
 pub enum Route {
     File(PathBuf),
     Write(u64),
+    /// Caminho relativo dentro da pasta de cache, já decodificado (validado em cache::safe_join).
+    Cache(String),
 }
 
 /// Lê a rota a partir do caminho da URI (ainda codificado).
@@ -110,6 +113,10 @@ pub fn parse_route(uri_path: &str) -> Option<Route> {
             Some(Route::File(PathBuf::from(decoded.as_ref())))
         }
         "write" => rest.parse().ok().map(Route::Write),
+        "cache" => {
+            let decoded = percent_decode_str(rest).decode_utf8().ok()?;
+            (!decoded.is_empty()).then(|| Route::Cache(decoded.into_owned()))
+        }
         _ => None,
     }
 }
@@ -156,6 +163,7 @@ pub struct MediaState {
     allowed: RwLock<HashSet<PathBuf>>,
     exports: Mutex<HashMap<u64, ExportSession>>,
     next_export_id: AtomicU64,
+    cache_root: RwLock<Option<PathBuf>>,
 }
 
 fn partial_path_for(path: &Path) -> PathBuf {
@@ -172,6 +180,11 @@ fn unknown_export(id: u64) -> io::Error {
 }
 
 impl MediaState {
+    /// Define a pasta servida pela rota /cache/. Chamado uma vez na inicialização.
+    pub fn set_cache_root(&self, root: PathBuf) {
+        *self.cache_root.write().unwrap() = Some(root);
+    }
+
     /// Autoriza a leitura de um arquivo escolhido pelo usuário.
     pub fn allow(&self, path: &Path) -> io::Result<()> {
         let canonical = fs::canonicalize(path)?;
@@ -320,6 +333,16 @@ fn handle_inner(
                 req.method() == Method::HEAD,
             )
         }
+        (&Method::GET | &Method::HEAD, Route::Cache(rel)) => {
+            let root = state.cache_root.read().unwrap().clone();
+            let path = root
+                .as_deref()
+                .and_then(|r| crate::cache::safe_join(r, &rel))
+                .ok_or_else(|| {
+                    HttpError(StatusCode::FORBIDDEN, "caminho de cache inválido".into())
+                })?;
+            serve_file(&path, None, req.method() == Method::HEAD)
+        }
         (&Method::PUT | &Method::POST, Route::Write(id)) => {
             let pos = query_pos(req.uri().query())
                 .ok_or_else(|| HttpError(StatusCode::BAD_REQUEST, "falta ?pos=".into()))?;
@@ -435,6 +458,15 @@ mod tests {
         assert_eq!(parse_route("/file/"), None);
         assert_eq!(parse_route("/outra/x"), None);
         assert_eq!(parse_route("/"), None);
+        assert_eq!(
+            parse_route("/cache/media%2Fab%2Fposter.jpg"),
+            Some(Route::Cache("media/ab/poster.jpg".into()))
+        );
+        assert_eq!(
+            parse_route("/cache/media/ab/poster.jpg"),
+            Some(Route::Cache("media/ab/poster.jpg".into()))
+        );
+        assert_eq!(parse_route("/cache/"), None);
         assert_eq!(query_pos(Some("pos=1024")), Some(1024));
         assert_eq!(query_pos(Some("a=1&pos=7")), Some(7));
         assert_eq!(query_pos(None), None);
@@ -588,5 +620,43 @@ mod tests {
             .body(vec![])
             .unwrap();
         assert_eq!(handle(&state, req).status(), StatusCode::METHOD_NOT_ALLOWED);
+    }
+
+    #[test]
+    fn serves_cache_files_only_inside_root() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("cache");
+        fs::create_dir_all(root.join("media/ab")).unwrap();
+        fs::write(root.join("media/ab/poster.jpg"), b"jpeg").unwrap();
+        fs::write(dir.path().join("segredo.txt"), b"x").unwrap();
+        let state = MediaState::default();
+        let req = |uri: &str| {
+            Request::builder()
+                .method("GET")
+                .uri(uri)
+                .body(Vec::new())
+                .unwrap()
+        };
+
+        // Sem raiz definida, nada é servido.
+        assert_eq!(
+            handle(&state, req("media://localhost/cache/media/ab/poster.jpg")).status(),
+            StatusCode::FORBIDDEN
+        );
+
+        state.set_cache_root(root);
+        let res = handle(&state, req("media://localhost/cache/media/ab/poster.jpg"));
+        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(res.headers()[header::CONTENT_TYPE], "image/jpeg");
+        assert_eq!(res.body().as_slice(), b"jpeg");
+
+        assert_eq!(
+            handle(&state, req("media://localhost/cache/..%2Fsegredo.txt")).status(),
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            handle(&state, req("media://localhost/cache/media/zz/poster.jpg")).status(),
+            StatusCode::NOT_FOUND
+        );
     }
 }

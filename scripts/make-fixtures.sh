@@ -16,8 +16,8 @@ $FF -f lavfi -i "$(printf "$SRC" 1080x1920 30000/1001 64)" -f lavfi -i "$tone" -
   -c:v libx264 -preset veryfast -pix_fmt yuv420p -c:a aac -shortest h264_vertical_2997.mp4
 # 1080p HEVC (o WebView2 só decodifica se o Windows tiver a extensão HEVC).
 $FF -f lavfi -i "$(printf "$SRC" 1920x1080 30 64)" -t 12 -c:v libx265 -preset fast -x265-params log-level=error -tag:v hvc1 -pix_fmt yuv420p -an hevc_1080_30.mp4 || echo "sem libx265, pulando HEVC"
-# Taxa de quadros variável.
-$FF -f lavfi -i "$(printf "$SRC" 1280x720 30 48)" -t 12 -vf "setpts='if(lt(mod(N,10),5),N/30/TB,(N+0.5)/30/TB)'" \
+# Taxa de quadros variável: entre 2 s e 6 s, 2 de cada 3 quadros somem (ffprobe: r 30/1, média 70/3).
+$FF -f lavfi -i "$(printf "$SRC" 1280x720 30 48)" -t 12 -vf "select='not(between(n\,60\,180)*mod(n\,3))'" \
   -fps_mode vfr -c:v libx264 -preset veryfast -pix_fmt yuv420p -an h264_720_vfr.mp4
 # Sem áudio, 23,976 fps.
 $FF -f lavfi -i "$(printf "$SRC" 1920x1080 24000/1001 64)" -t 12 -c:v libx264 -preset veryfast -pix_fmt yuv420p -an h264_1080_23976_noaudio.mp4

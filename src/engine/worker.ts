@@ -3,9 +3,11 @@
  * Não importa React nem nada de src/panels.
  */
 import { Compositor } from "./compositor/compositor";
+import { pickDecoderConfig } from "./decode/decoder";
+import { openInput } from "./decode/source";
 import { ExportCancelled } from "./export";
 import { openFrameCount } from "./frames";
-import type { FromWorker, ToWorker } from "./messages";
+import type { DecodeCheck, FromWorker, ToWorker } from "./messages";
 import { exportProof, openSource, playProof } from "./proof";
 
 // No contexto do Worker, `self` tem postMessage(message, transfer).
@@ -103,6 +105,25 @@ async function handle(msg: ToWorker): Promise<void> {
     case "proof:cancelExport":
       exporting?.abort();
       return;
+
+    case "media:check":
+      post({ type: "media:checked", requestId: msg.requestId, result: await checkDecodable(msg.url) });
+      return;
+  }
+}
+
+/** Lê só o cabeçalho do arquivo (por Range) e pergunta ao WebCodecs se decodifica. */
+async function checkDecodable(url: string): Promise<DecodeCheck> {
+  const input = openInput({ kind: "url", url });
+  try {
+    const track = await input.getPrimaryVideoTrack();
+    if (!track) return { decodable: true, hardware: null, codecString: null };
+    const [picked, codecString] = await Promise.all([pickDecoderConfig(track), track.getCodecParameterString()]);
+    return { decodable: picked !== null, hardware: picked?.hardware ?? null, codecString };
+  } catch (e) {
+    return { decodable: false, hardware: null, codecString: null, error: errorMessage(e) };
+  } finally {
+    input.dispose();
   }
 }
 

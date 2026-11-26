@@ -21,6 +21,7 @@ função (projeto, tempo) → quadro. Originais nunca são modificados.
 - cargo test            (dentro de src-tauri)
 - npm run lint && npm run typecheck
 - npm run fixtures      gera vídeos de teste em tests/fixtures/ (precisa de ffmpeg com libx264)
+- npm run ffmpeg        baixa/liga o FFmpeg em src-tauri/binaries (roda sozinho no npm install)
 
 ## Regras invariáveis
 - Tempos são inteiros em microssegundos. Nunca segundos em float no modelo.

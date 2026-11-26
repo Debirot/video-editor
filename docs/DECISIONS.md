@@ -77,3 +77,15 @@ As decisões de stack do plano técnico (seção 2) valem como D-001 a D-006.
 - Decisão: `react-resizable-panels` 4.x (previsto no plano; a v4 usa `Group`/`Panel`/`Separator` e tamanhos em px), `@radix-ui/react-tooltip` (base do Tooltip do shadcn/ui) e `@fontsource-variable/inter` (fonte empacotada, sem rede).
 - Descartadas: painéis com CSS próprio (arrasto, teclado e acessibilidade dariam trabalho), `title` nativo no lugar de tooltip (atraso fixo, sem atalho), Inter do Google Fonts (exige rede).
 - Consequências: layout salvo no localStorage do WebView; se a estrutura de painéis mudar, trocar os ids `layout-*` para não restaurar um layout incompatível.
+
+### D-013 · 2026-11-26 · FFmpeg 8.1 LGPL estático, baixado no npm install
+- Contexto: T1.04 precisa de ffprobe e ffmpeg empacotados; o plano exige build LGPL (sem libx264/libx265).
+- Decisão: `scripts/ensure-ffmpeg.mjs` (postinstall) baixa `ffmpeg-n8.1-latest-win64-lgpl-8.1.zip` do BtbN/FFmpeg-Builds e copia `ffmpeg.exe`, `ffprobe.exe` e a licença para `src-tauri/binaries/` com o target triple. No Linux/macOS cria links para o FFmpeg do PATH.
+- Descartadas: FFmpeg do PATH também no Windows (instalação diferente em cada máquina); build "shared" com DLLs (menor, mas o Tauri não empacota DLLs de sidecar sozinho).
+- Consequências: os dois executáveis somam ~270 MB, o instalador fica grande. O asset "latest" muda com o tempo; antes do instalador (Fase 3), fixar uma versão datada com checksum e avaliar o build shared.
+
+### D-014 · 2026-11-26 · Detalhes da importação
+- Contexto: escolhas pequenas da T1.04 que uma sessão futura poderia desfazer sem saber por quê.
+- Decisão: pôster em JPEG 320 px de largura a 10% da duração (o encoder mjpeg é nativo do FFmpeg; WebP fica para as folhas de miniaturas). Hash parcial FNV-1a 64 do tamanho + primeiros e últimos 64 KB (sem dependência; não é criptográfico, só nomeia cache). VFR quando `r_frame_rate` e `avg_frame_rate` diferem mais de 0,2%. "Decodificável" é perguntado ao WebCodecs no Worker (`media:check`), não deduzido do codec pelo ffprobe.
+- Descartadas: hash do arquivo inteiro (lento em 4K), detectar VFR contando quadros (ffprobe -count_frames lê o arquivo todo), tabela fixa de codecs suportados.
+- Consequências: a heurística de VFR pode errar em arquivos com duração mal declarada; a conversão para taxa constante entra com os proxies.

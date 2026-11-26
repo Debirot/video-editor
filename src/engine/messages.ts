@@ -71,7 +71,17 @@ export type ToWorker =
   | { type: "proof:play"; mode: "realtime" | "benchmark"; durationUs: number }
   | { type: "proof:stop" }
   | { type: "proof:export"; source: MediaRef; target: OutputRef; settings: ExportSettings }
-  | { type: "proof:cancelExport" };
+  | { type: "proof:cancelExport" }
+  /** O WebCodecs deste WebView decodifica o vídeo? (T1.04: aviso de proxy na biblioteca) */
+  | { type: "media:check"; requestId: number; url: string };
+
+export interface DecodeCheck {
+  /** true também para arquivos sem trilha de vídeo (áudio, imagem). */
+  decodable: boolean;
+  hardware: HardwarePreference | null;
+  codecString: string | null;
+  error?: string;
+}
 
 export type FromWorker =
   | { type: "ready"; webgl2: boolean; webcodecs: boolean }
@@ -81,4 +91,5 @@ export type FromWorker =
   | { type: "proof:exportDone"; result: ExportResult; buffer?: ArrayBuffer }
   | { type: "proof:exportCancelled" }
   | { type: "stats"; openFrames: number }
+  | { type: "media:checked"; requestId: number; result: DecodeCheck }
   | { type: "error"; context: string; message: string };

@@ -6,7 +6,10 @@
 import { AudioLines, Blend, Film, Import, Sparkles, Type, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tip } from "@/components/ui/tooltip";
+import { pickAndImport } from "@/app/importMedia";
+import { isTauri } from "@/lib/ipc";
 import { cn } from "@/lib/cn";
+import { MediaLibrary } from "./MediaLibrary";
 
 export type LibraryTab = "media" | "audio" | "text" | "transitions" | "effects";
 
@@ -68,14 +71,14 @@ export function LibraryPanel({ tab }: { tab: LibraryTab }) {
       <header className="flex h-10 shrink-0 items-center justify-between px-3">
         <h2 className="text-title font-semibold">{info.label}</h2>
         {tab === "media" && (
-          <Tip label="Importar (em breve)" shortcut="Ctrl+I">
-            <Button size="sm" disabled>
+          <Tip label={isTauri() ? "Importar vídeos, áudios e imagens" : "Importar só funciona no app"} shortcut="Ctrl+I">
+            <Button size="sm" disabled={!isTauri()} onClick={() => void pickAndImport()}>
               <Import /> Importar
             </Button>
           </Tip>
         )}
       </header>
-      <EmptyState icon={info.icon} text={info.empty} />
+      {tab === "media" ? <MediaLibrary /> : <EmptyState icon={info.icon} text={info.empty} />}
     </section>
   );
 }

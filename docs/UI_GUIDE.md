@@ -88,7 +88,13 @@ Componentes de painel só montam peças daqui. Se falta uma peça, ela é criada
   com seta, conteúdo recolhível; dentro, `InspectorRow` com rótulo de 96 px e valor.
 - **Estado vazio** (`EmptyState` em `src/panels/library/LibraryPanel.tsx`): ícone de 32 px
   com traço 1,25 e uma frase que diz o próximo passo.
-- **Item de biblioteca** e **diálogo**: entram com a importação (T1.04) e a exportação (T1.10).
+- **Item de biblioteca** (`MediaItem` em `src/panels/library/MediaLibrary.tsx`): pôster 16:9
+  em `object-contain` sobre `bg-0`, duração no canto inferior direito, selos no canto superior
+  esquerdo ("Proxy" em `danger`, "VFR" em `accent`, com tooltip explicando), nome truncado.
+  Enquanto o pôster é gerado, um spinner; sem pôster (áudio), o ícone do tipo.
+- **Aviso de erro** (`ImportErrors`): borda `danger`, título com contagem, lista com nome e motivo, botão fechar.
+- **Diálogo**: entra com a exportação (T1.10).
+- **Arrastar arquivos**: a janela inteira mostra "Solte para importar" com borda tracejada `accent`.
 
 Botões sem função ainda aparecem desabilitados com tooltip "(em breve)".
 
