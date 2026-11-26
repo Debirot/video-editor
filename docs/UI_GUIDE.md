@@ -129,7 +129,8 @@ Botões sem função ainda aparecem desabilitados com tooltip "(em breve)".
 | N | Ligar ou desligar encaixe | T1.06a |
 | + / − / Shift + Z | Zoom da timeline / mostrar tudo | T1.06a |
 | Ctrl + I | Importar | T1.06a |
-| Espaço, J / K / L | Reproduzir/pausar, voltar/pausar/avançar | T1.07 |
+| Espaço | Reproduzir ou pausar | T1.07 |
+| J / K / L | Tocar para trás / pausar / tocar para frente; repetir J ou L dobra (até 8×) | T1.07 |
 | M | Adicionar marcador | Fase 2 |
 | Ctrl + S / Ctrl + E | Salvar / exportar | T1.09 / T1.10 |
 

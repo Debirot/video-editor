@@ -9,6 +9,7 @@ import { ExportCancelled } from "./export";
 import { openFrameCount } from "./frames";
 import type { DecodeCheck, FromWorker, ToWorker } from "./messages";
 import { exportProof, openSource, playProof } from "./proof";
+import { Playback } from "./playback";
 
 // No contexto do Worker, `self` tem postMessage(message, transfer).
 const ctx = self as unknown as {
@@ -25,6 +26,7 @@ function errorMessage(e: unknown): string {
 }
 
 let preview: Compositor | null = null;
+const previewPlayback = new Playback((msg) => post(msg));
 let source: Awaited<ReturnType<typeof openSource>> | null = null;
 let playback: AbortController | null = null;
 let exporting: AbortController | null = null;
@@ -104,6 +106,25 @@ async function handle(msg: ToWorker): Promise<void> {
 
     case "proof:cancelExport":
       exporting?.abort();
+      return;
+
+    case "preview:attach":
+      previewPlayback.attach(msg.canvas);
+      return;
+    case "preview:project":
+      previewPlayback.setProject(msg.project, msg.sources);
+      return;
+    case "preview:seek":
+      previewPlayback.seek(msg.t);
+      return;
+    case "preview:play":
+      previewPlayback.play(msg.from, msg.rate);
+      return;
+    case "preview:pause":
+      previewPlayback.pause();
+      return;
+    case "preview:quality":
+      previewPlayback.setQuality(msg.scale);
       return;
 
     case "media:check":

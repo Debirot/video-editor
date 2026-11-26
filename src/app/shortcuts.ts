@@ -30,7 +30,11 @@ export type Action =
   | "zoomIn"
   | "zoomOut"
   | "zoomFit"
-  | "import";
+  | "import"
+  | "togglePlay"
+  | "shuttleBack"
+  | "stop"
+  | "shuttleForward";
 
 export const SHORTCUTS: Record<string, Action> = {
   "Ctrl+Z": "undo",
@@ -60,6 +64,10 @@ export const SHORTCUTS: Record<string, Action> = {
   "-": "zoomOut",
   "Shift+Z": "zoomFit",
   "Ctrl+I": "import",
+  Space: "togglePlay",
+  J: "shuttleBack",
+  K: "stop",
+  L: "shuttleForward",
 };
 
 export interface KeyLike {

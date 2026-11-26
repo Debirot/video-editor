@@ -65,6 +65,8 @@ export interface ExportResult {
   fps: number;
 }
 
+import type { Project } from "@/project/types";
+
 export type ToWorker =
   | { type: "init"; canvas: OffscreenCanvas }
   | { type: "proof:open"; source: MediaRef }
@@ -73,7 +75,23 @@ export type ToWorker =
   | { type: "proof:export"; source: MediaRef; target: OutputRef; settings: ExportSettings }
   | { type: "proof:cancelExport" }
   /** O WebCodecs deste WebView decodifica o vídeo? (T1.04: aviso de proxy na biblioteca) */
-  | { type: "media:check"; requestId: number; url: string };
+  | { type: "media:check"; requestId: number; url: string }
+  // Preview (T1.07)
+  | { type: "preview:attach"; canvas: OffscreenCanvas }
+  | { type: "preview:project"; project: Project; sources: Record<string, PreviewSource> }
+  | { type: "preview:seek"; t: number }
+  | { type: "preview:play"; from: number; rate: number }
+  | { type: "preview:pause" }
+  | { type: "preview:quality"; scale: PreviewQuality };
+
+/** Onde o Worker lê cada mídia do projeto (URL do media://). */
+export interface PreviewSource {
+  url: string;
+  kind: "video" | "audio" | "image";
+}
+
+/** Fração da resolução do projeto usada no preview. */
+export type PreviewQuality = 1 | 0.5 | 0.25;
 
 export interface DecodeCheck {
   /** true também para arquivos sem trilha de vídeo (áudio, imagem). */
@@ -92,4 +110,7 @@ export type FromWorker =
   | { type: "proof:exportCancelled" }
   | { type: "stats"; openFrames: number }
   | { type: "media:checked"; requestId: number; result: DecodeCheck }
+  /** Tempo mostrado no preview (início de quadro). Enviado a cada quadro durante a reprodução. */
+  | { type: "preview:time"; t: number; playing: boolean }
+  | { type: "preview:stats"; droppedFrames: number; openFrames: number; renderMs: number }
   | { type: "error"; context: string; message: string };

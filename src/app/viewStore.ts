@@ -5,6 +5,7 @@
 import { createStore } from "zustand/vanilla";
 import { useStore } from "zustand";
 import type { Us } from "@/lib/time";
+import type { PreviewQuality } from "@/engine/messages";
 import { DEFAULT_PX_PER_SECOND } from "@/timeline/viewport";
 
 export interface ViewState {
@@ -17,6 +18,14 @@ export interface ViewState {
   viewportWidth: number;
   /** Encaixe nas bordas de clipes e no playhead (usado ao arrastar, T1.06b). */
   snap: boolean;
+  /** Preview tocando (o Worker avisa quando chega ao fim). */
+  playing: boolean;
+  /** Velocidade: 1 normal, 2/4/8 com L repetido, negativa com J. */
+  rate: number;
+  quality: PreviewQuality;
+  /** Diagnóstico do preview, mostrado em desenvolvimento. */
+  droppedFrames: number;
+  openFrames: number;
 }
 
 export const viewStore = createStore<ViewState>()(() => ({
@@ -26,6 +35,11 @@ export const viewStore = createStore<ViewState>()(() => ({
   scrollY: 0,
   viewportWidth: 0,
   snap: true,
+  playing: false,
+  rate: 1,
+  quality: 1,
+  droppedFrames: 0,
+  openFrames: 0,
 }));
 
 export function useView<T>(selector: (s: ViewState) => T): T {

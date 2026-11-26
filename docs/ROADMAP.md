@@ -131,11 +131,22 @@ Pronto quando:
 - [ ] No Windows: conferir arrasto da biblioteca (o drop de arquivos do sistema continua funcionando)
 Fora do escopo: rolagem automática ao arrastar perto da borda, ripple/roll/slip (Fase 3).
 
-### T1.07 Preview · próxima
-Reprodução de várias trilhas de vídeo, seek, quadro a quadro, J/K/L, qualidade (1, 1/2, 1/4)
-e proporção. Pool de decodificadores (6, LRU) e cache de quadros (48, LRU). Substitui proof.ts.
+### T1.07 Preview · concluída
+Objetivo: reprodução de várias trilhas de vídeo, seek, quadro a quadro, J/K/L, qualidade e proporção.
+Arquivos: src/engine/{evaluate,playback,messages,worker}.ts, src/engine/decode/{pool,decoder}.ts,
+src/engine/compositor/compositor.ts (aceita ImageBitmap), src/app/{engine,viewStore,shortcuts,editActions}.ts,
+src/panels/preview/PreviewPanel.tsx
+Pronto quando:
+- [x] evaluate.ts testado: camadas de baixo para cima, sourceIn/speed, trilha oculta, clipe desligado,
+      mídia ausente/áudio/imagem, limite do fim da mídia
+- [x] No navegador (H.264 real no Worker): seek em 5 s mostra o quadro 150; clipe vertical em 15 s mostra
+      a fonte em 2,970 s com faixas; PNG com transparência na V2 por cima; Espaço toca e pausa;
+      L L = 2×; K pausa; qualidade 1/2; quadros abertos voltam a 0 depois de parado
+- [ ] No Windows: preview 1080p de uma trilha sem queda perceptível (critério do Portão 1)
+Limitações conhecidas: sem áudio e relógio por performance.now() até T1.08; J (para trás) recomeça
+do keyframe a cada quadro, então é lento; transformações, efeitos e textos entram na Fase 2.
 
-### T1.08 Áudio
+### T1.08 Áudio · próxima
 Mixer em Web Audio, volume e mudo por trilha, áudio ligado ao vídeo, relógio do áudio como mestre.
 
 ### T1.09 Salvar e abrir

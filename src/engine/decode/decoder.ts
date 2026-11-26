@@ -26,7 +26,9 @@ export async function pickDecoderConfig(
 }
 
 /**
- * Gera os quadros com timestamp em [startUs, endUs), em ordem de apresentação.
+ * Gera os quadros com timestamp em [keepFromUs, endUs), em ordem de apresentação,
+ * começando a decodificar no keyframe anterior a startUs. Por padrão keepFromUs = startUs;
+ * o preview passa -Infinity para receber também o quadro que contém startUs.
  * Cada quadro entregue pertence ao consumidor, que deve chamar release().
  * Interromper o laço (break/return) fecha o decodificador e os quadros pendentes.
  */
@@ -35,6 +37,7 @@ export async function* decodeFrames(
   config: VideoDecoderConfig,
   startUs: Us,
   endUs: Us,
+  keepFromUs: Us = startUs,
 ): AsyncGenerator<VideoFrame, void, void> {
   const sink = new EncodedPacketSink(track);
   const key = (await sink.getKeyPacket(usToSeconds(startUs))) ?? (await sink.getFirstPacket());
@@ -72,7 +75,7 @@ export async function* decodeFrames(
 
       while (ready.length > 0) {
         const frame = ready.shift()!;
-        if (frame.timestamp < startUs) {
+        if (frame.timestamp < keepFromUs) {
           release(frame);
         } else if (frame.timestamp >= endUs) {
           release(frame);
@@ -87,7 +90,7 @@ export async function* decodeFrames(
       await decoder.flush();
       while (ready.length > 0) {
         const frame = ready.shift()!;
-        if (frame.timestamp >= startUs && frame.timestamp < endUs) yield frame;
+        if (frame.timestamp >= keepFromUs && frame.timestamp < endUs) yield frame;
         else release(frame);
       }
     }
@@ -126,7 +129,8 @@ export class FrameCursor {
       this.current = this.next;
       this.next = null;
     }
-    return this.current;
+    // Antes do primeiro quadro (fonte que não começa em 0): mostra o primeiro.
+    return this.current ?? this.next;
   }
 
   async close(): Promise<void> {

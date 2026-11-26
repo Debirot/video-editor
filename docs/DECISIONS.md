@@ -95,3 +95,9 @@ As decisões de stack do plano técnico (seção 2) valem como D-001 a D-006.
 - Decisão: colar e duplicar sobrescrevem o que estiver no caminho (clearRange), nas trilhas de origem; dividir (S) age só nos clipes selecionados (e nos ligados), como no plano; apagar fechando o espaço (ripple) move só as trilhas onde algo foi apagado; selecionar um clipe seleciona os ligados; a área de transferência é interna do app.
 - Descartadas: colar inserindo e empurrando o resto (ripple insert), dividir todas as trilhas sem seleção, ripple sincronizado em todas as trilhas.
 - Consequências: apagar com ripple um clipe só de vídeo pode dessincronizar outras trilhas; ripple em todas as trilhas e inserção podem entrar na Fase 3 (ripple, roll, slip).
+
+### D-016 · 2026-11-26 · Preview da T1.07
+- Contexto: primeira reprodução real; o relógio do áudio só existe na T1.08.
+- Decisão: relógio por performance.now() no Worker até a T1.08; quadros atrasados são descartados (contados) em vez de atrasar o relógio; parado, os quadros guardados são soltos depois de 1,5 s; navegar (setas, Home/End, cortes) pausa; o preview compõe cada camada encaixada (contain) com opacidade, sem transformações (Fase 2).
+- Descartadas: renderizar trechos antecipadamente; manter quadros guardados para sempre (o contador nunca voltaria a 0); reprodução para trás com decodificação reversa (complexa).
+- Consequências: J é lento em vídeos com GOP longo (recomeça do keyframe a cada quadro); com proxies (Fase 3) melhora.

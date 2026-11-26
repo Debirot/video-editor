@@ -37,6 +37,10 @@ describe("actionFor", () => {
     expect(actionFor(key("+", { shiftKey: true }))).toBe("zoomIn");
     expect(actionFor(key("="))).toBe("zoomIn");
     expect(actionFor(key("n"))).toBe("toggleSnap");
+    expect(actionFor(key(" "))).toBe("togglePlay");
+    expect(actionFor(key("j"))).toBe("shuttleBack");
+    expect(actionFor(key("k"))).toBe("stop");
+    expect(actionFor(key("l"))).toBe("shuttleForward");
   });
 
   it("teclas sem atalho e combinações diferentes não disparam", () => {
@@ -49,7 +53,7 @@ describe("actionFor", () => {
     for (const combo of Object.keys(SHORTCUTS)) {
       const parts = combo === "+" ? ["+"] : combo.split("+");
       const k = parts[parts.length - 1]!;
-      const e = key(k.length === 1 ? k.toLowerCase() : k, {
+      const e = key(k === "Space" ? " " : k.length === 1 ? k.toLowerCase() : k, {
         ctrlKey: parts.includes("Ctrl"),
         shiftKey: parts.includes("Shift"),
         altKey: parts.includes("Alt"),

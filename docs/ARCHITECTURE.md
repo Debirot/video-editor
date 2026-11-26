@@ -113,6 +113,23 @@ indexado pelo hash, e não vai para o project.json.
   Selecionar um clipe seleciona também os do mesmo `linkGroup` (`withLinked`).
 - `src/timeline/hitTest.ts`: régua, trilha + clipe sob o ponteiro (com borda para aparar), ou vazio.
 
+### Preview (T1.07)
+```
+projectStore ─(projeto + URLs media://)─► Worker: Playback
+viewStore.playhead ─(seek, só quando o usuário move)─► Playback
+Playback: relógio → frameStart(t) → videoLayersAt (evaluate.ts) → PicturePool.picture
+          → Compositor (WebGL2, OffscreenCanvas do painel) → preview:time a cada quadro
+```
+- `src/engine/evaluate.ts`: camadas visíveis em t (função pura, testada).
+- `src/engine/decode/pool.ts`: um decodificador por mídia em uso (no máximo 6, LRU); para frente
+  reaproveita o FrameCursor, para trás ou salto > 2 s recomeça do keyframe; imagens viram
+  ImageBitmap uma vez. Usos simultâneos da mesma mídia no mesmo quadro usam "slots" separados.
+- `src/engine/playback.ts`: laço por requestAnimationFrame do Worker; se a composição anterior
+  não terminou, o quadro é descartado e contado. Parado, só o último seek é desenhado, e depois
+  de 1,5 s os quadros guardados são soltos (contador volta a 0).
+- `src/app/engine.ts`: um Worker para o app; envia o projeto a cada mudança e o playhead quando
+  o usuário o move (ignora o eco do que veio do Worker); a timeline acompanha o playhead tocando.
+
 ### Edição com o mouse (T1.06b)
 - `src/timeline/gestures.ts`: máquina de gestos (scrub, clique, mover, aparar, retângulo).
   Mover e aparar abrem uma transação; a cada movimento a transação é cancelada e o passo

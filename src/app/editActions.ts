@@ -13,6 +13,7 @@ import { isTauri } from "@/lib/ipc";
 import { liveSelection, selectionStore, setSelection } from "./selectionStore";
 import type { Action } from "./shortcuts";
 import { viewStore } from "./viewStore";
+import { pause, shuttle, togglePlay } from "./engine";
 
 function viewport(): Viewport {
   const v = viewStore.getState();
@@ -78,7 +79,19 @@ export function runAction(action: Action): void {
   const fps = project.settings.fps;
   const playhead = viewStore.getState().playhead;
 
+  // Navegar pelo tempo pausa a reprodução, como nos editores de vídeo.
+  const navigation: Action[] = ["frameBack", "frameForward", "secondBack", "secondForward", "prevCut", "nextCut", "goStart", "goEnd"];
+  if (navigation.includes(action)) pause();
+
   switch (action) {
+    case "togglePlay":
+      return togglePlay();
+    case "shuttleBack":
+      return shuttle(-1);
+    case "shuttleForward":
+      return shuttle(1);
+    case "stop":
+      return pause();
     case "undo":
       return store.undo();
     case "redo":

@@ -124,8 +124,11 @@ export class Compositor {
     gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
-  /** Envia o VideoFrame direto como textura (sem passar por bitmap na CPU) e desenha em `rect`. */
-  drawFrame(frame: VideoFrame, rect: Rect, opacity = 1): void {
+  /**
+   * Envia a imagem direto como textura (um VideoFrame não passa por bitmap na CPU) e
+   * desenha em `rect`. `blend` liga a mistura alfa (PNG com transparência, opacidade < 1).
+   */
+  drawFrame(frame: TexImageSource, rect: Rect, opacity = 1, blend = opacity < 1): void {
     const gl = this.gl;
     gl.useProgram(this.program);
     gl.bindVertexArray(this.vao);
@@ -135,7 +138,7 @@ export class Compositor {
     gl.uniform4f(this.uRect, rect.x, rect.y, rect.w, rect.h);
     gl.uniform2f(this.uViewport, this.width, this.height);
     gl.uniform1f(this.uOpacity, opacity);
-    if (opacity < 1) {
+    if (blend || opacity < 1) {
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     } else {
