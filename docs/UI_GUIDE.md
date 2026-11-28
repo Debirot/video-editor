@@ -99,6 +99,13 @@ Componentes de painel só montam peças daqui. Se falta uma peça, ela é criada
   Vírgula decimal e menos tipográfico (−).
 - **Inspetor por seleção**: nada → Projeto; um clipe (com o ligado) → nome da mídia, seções Clipe
   (início, duração, ponto na mídia, trilhas) e Áudio (volume, fades); vários → "N clipes selecionados".
+- **Seções Transformação e Recorte** (vídeo e imagem): Posição X/Y em px, Escala e Opacidade em %,
+  Rotação em °; "Redefinir" aparece quando algo mudou. Recorte (esquerda, direita, cima, baixo em %)
+  abre sozinho quando há recorte.
+- **Alças no preview** (`TransformHandles`): só com o clipe selecionado, parado e em trilha
+  destravada. Moldura e alças em `accent` com fundo `bg-1`; arrastar dentro move (encaixa no centro
+  a 6 px; Shift trava o eixo), cantos mudam a escala, o círculo acima gira (Shift = 15°). Clicar
+  numa camada a seleciona; clicar no vazio limpa a seleção. Esc cancela o arrasto.
 - **Estado vazio** (`EmptyState` em `src/panels/library/LibraryPanel.tsx`): ícone de 32 px
   com traço 1,25 e uma frase que diz o próximo passo.
 - **Item de biblioteca** (`MediaItem` em `src/panels/library/MediaLibrary.tsx`): pôster 16:9

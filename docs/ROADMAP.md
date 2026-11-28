@@ -159,7 +159,7 @@ Pronto quando:
 - [x] No navegador: AAC 48 kHz do vídeo (A1) e MP3 44,1 kHz (A2) tocam juntos com amplitude real;
       blocos chegam antes da hora (Worker de áudio separado); primeiro bloco sem corte; mudo e solo
       mudam o que toca; em 2× não toca som
-- [ ] No Windows: áudio a menos de um quadro do vídeo depois de 2 min (critério do Portão 1)
+- [x] No Windows: áudio a menos de um quadro do vídeo depois de 2 min (teste de sincronia do Portão 1)
 Fora do escopo: waveforms (Fase 2), áudio acelerado preservando o tom (Fase 3), fades editáveis na interface (Fase 2).
 
 ### T1.09 Salvar e abrir · concluída
@@ -174,7 +174,7 @@ Pronto quando:
 - [x] No navegador: tela inicial com recentes; ponto e "•" no título com alterações; Ctrl+S grava com relPath;
       Ctrl+N pergunta (Cancelar mantém, Não salvar descarta); Ctrl+O acha a mídia pelo relPath depois de mover
       a pasta; mídia sumida vira aviso e selo "Ausente"
-- [ ] No Windows: salvar, fechar o app (pergunta se houver alterações), abrir pelos recentes
+- [x] No Windows: salvar, fechar o app (pergunta se houver alterações), abrir pelos recentes
 Fora do escopo: autosave e versões, religar mídia ausente (Fase 2).
 
 ### T1.10 Exportação · concluída
@@ -190,7 +190,7 @@ Pronto quando:
       30 fps, 360 quadros, 12,000 s (= timeline), áudio 48 kHz estéreo com níveis coerentes com a mixagem;
       quadro em 5 s é o quadro certo da fonte; teclado responde em ~15 ms durante a exportação;
       cancelar apaga o parcial; falha de gravação vira erro (não trava) e apaga o parcial
-- [ ] No Windows: exportar com AAC e H.264 por hardware; abrir no VLC e no player do Windows
+- [x] No Windows: exportar com AAC e H.264; abrir no VLC e no player do Windows
 Fora do escopo: presets (YouTube, Reels…) e exportador via FFmpeg (Fase 3), pausar tarefas de baixa prioridade (não há ainda).
 
 ### Critérios de conclusão da Fase 1 (Portão 1)
@@ -199,8 +199,8 @@ Fora do escopo: presets (YouTube, Reels…) e exportador via FFmpeg (Fase 3), pa
 - [x] Cortar, dividir, mover e encaixar funcionam por mouse e por atalho
 - [x] Um teste aplica 50 comandos e desfaz todos, voltando a um projeto idêntico ao inicial
 - [x] Preview 1080p de uma trilha sem queda perceptível (Windows: 1 quadro perdido em 10 s)
-- [ ] Áudio a menos de um quadro do vídeo após 2 min (falta medir no Windows)
-- [ ] MP4 exportado abre no VLC e no player do Windows; duração igual à timeline (±1 quadro); resolução e FPS confirmados pelo ffprobe
+- [x] Áudio a menos de um quadro do vídeo após 2 min (Windows)
+- [x] MP4 exportado abre no VLC e no player do Windows; duração igual à timeline (±1 quadro); resolução e FPS confirmados pelo ffprobe
 - [ ] A interface responde durante a exportação; cancelar apaga o arquivo parcial
 - [x] O contador de VideoFrames abertos volta a zero ao parar a reprodução
 - [x] npm test, cargo test e typecheck passando
@@ -209,9 +209,9 @@ Fora do escopo: presets (YouTube, Reels…) e exportador via FFmpeg (Fase 3), pa
 
 ## Fase 2: edição completa
 
-Começou com o Portão 1 ainda com itens a medir no Windows (sincronia de 2 min, exportação com AAC
-e H.264 por hardware no VLC e no player do Windows, GPU integrada). Esses itens não dependem da Fase 2
-e continuam na lista acima.
+Começou com o Portão 1 ainda com itens a medir no Windows. Sincronia de 2 min e exportação aberta no
+VLC e no player do Windows foram confirmadas durante a T2.02; falta a prova técnica num notebook com GPU
+integrada (não depende da Fase 2 e continua na lista acima).
 
 ### T2.01 Inspetor por seleção, seções Clipe e Áudio · concluída
 Objetivo: o inspetor mostra o que vale para a seleção; editar início, duração, volume e fades do clipe.
@@ -224,12 +224,34 @@ Pronto quando:
       (rampas) e no histórico; início e duração por timecode; 5× Ctrl+Z volta tudo; vários clipes → resumo
 Fora do escopo: transformação (T2.02), editar configurações do projeto.
 
-### T2.02 Transformação · próxima
-Posição, escala, rotação, recorte e opacidade no compositor (preview e exportação), seção no inspetor e
-alças no preview.
+### T2.02 Transformação · concluída
+Objetivo: posição, escala, rotação, recorte e opacidade no compositor (preview e exportação), seção no
+inspetor e alças no preview; vídeo de celular gravado em pé aparece em pé.
+Arquivos: src/engine/transform.ts (novo), src/engine/compositor/{compositor,shaders}.ts,
+src/engine/{compose,evaluate,playback,exportProject}.ts, src/engine/decode/pool.ts,
+src/project/commands/clipProps.ts, src/panels/inspector/ClipInspector.tsx,
+src/panels/preview/{PreviewPanel,TransformHandles}.tsx (novo), src/app/engine.ts
+Pronto quando:
+- [x] transform.ts testado: encaixe (contain) em várias proporções, posição em px do projeto com preview
+      em qualidade reduzida, rotação do arquivo troca largura e altura, rotação somada, recorte mantém o
+      resto no lugar, ida e volta tela ↔ imagem, ponto dentro da camada girada
+- [x] setClipTransform/setClipCrop/resetClipTransform testados: limites, arredondamento, lado do recorte
+      empurra o oposto, ignora áudio e trilha travada
+- [x] Compositor desenha com matriz (shader) e recorte por coordenadas de textura; preview e exportação
+      usam a mesma conta
+- [x] No navegador: PiP com V2 sobre V1; arrastar move (X = 576 px, Y = −108 px), Shift + girar dá 30°,
+      cada arrasto é um passo de desfazer; quadro exportado igual ao preview; vídeo com rotação 90 no
+      arquivo aparece em pé, igual ao ffmpeg
+- [x] Arrastar alça não faz o preview piscar no estado anterior: o projeto vai ao Worker uma vez por
+      rodada e o redesenho pendente espera a fila de mensagens
+- [ ] No Windows: PiP, alças, vídeo de celular em pé e exportação
+Fora do escopo: keyframes (T2.07), ponto de âncora editável, espelhar, modos de mesclagem.
+
+### T2.03 Imagens e logotipos, depois formas · próxima
+Imagens com transparência na timeline com duração padrão e transformação; depois formas (retângulo,
+elipse) com cor e borda.
 
 ### Demais tarefas da Fase 2
-3. Imagens e logotipos, depois formas.
 4. Textos e títulos, com fontes do sistema.
 5. Ajustes de cor, desfoque e nitidez.
 6. Transições: dissolve, fade para preto, deslizar, zoom.

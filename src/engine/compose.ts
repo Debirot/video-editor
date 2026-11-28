@@ -3,7 +3,7 @@
  * (exportProject.ts) chamam estas mesmas funções: o arquivo final sai igual ao preview.
  */
 import type { Compositor } from "./compositor/compositor";
-import { fitContain } from "./compositor/compositor";
+import { placeLayer, type Size } from "./transform";
 import type { PicturePool, Picture } from "./decode/pool";
 import type { VideoLayer } from "./evaluate";
 
@@ -32,12 +32,25 @@ export async function gatherPictures(
   return pictures;
 }
 
-/** Desenha as camadas de baixo para cima sobre o fundo do projeto. */
-export function drawLayers(c: Compositor, background: string, layers: VideoLayer[], pictures: (Picture | null)[]): void {
+/**
+ * Desenha as camadas de baixo para cima sobre o fundo do projeto, cada uma com a sua
+ * transformação e recorte. `project` é o tamanho do projeto (a posição é em px dele);
+ * o compositor pode ser menor (preview em 1/2, 1/4) ou de outro tamanho (exportação).
+ */
+export function drawLayers(
+  c: Compositor,
+  background: string,
+  project: Size,
+  layers: VideoLayer[],
+  pictures: (Picture | null)[],
+): void {
   c.clear(background);
+  const out = { width: c.width, height: c.height };
   layers.forEach((layer, i) => {
     const pic = pictures[i];
-    if (!pic) return;
-    c.drawFrame(pic.image, fitContain(pic.width, pic.height, c.width, c.height), layer.opacity, layer.kind === "image");
+    if (!pic || layer.opacity <= 0) return;
+    const placement = placeLayer(pic, out, project, layer.transform, layer.crop);
+    const blend = layer.kind === "image" || layer.opacity < 1;
+    c.drawPlaced(pic.image, placement, layer.opacity, blend);
   });
 }

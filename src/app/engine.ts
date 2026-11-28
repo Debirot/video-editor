@@ -164,10 +164,18 @@ export function attachPreviewCanvas(canvas: HTMLCanvasElement): void {
   send({ type: "preview:quality", scale: viewStore.getState().quality });
   send({ type: "preview:seek", t: viewStore.getState().playhead });
 
+  // Várias mudanças seguidas no mesmo instante (um arrasto refaz a transação: desfaz e
+  // aplica de novo) viram um envio só, do estado final: o preview não pisca no meio.
+  let pendingProject = false;
   projectStore.subscribe((s, prev) => {
     if (s.project === prev.project) return;
-    sendProject(s.project);
     if (audio.active) restartAudioSoon();
+    if (pendingProject) return;
+    pendingProject = true;
+    queueMicrotask(() => {
+      pendingProject = false;
+      sendProject(projectStore.getState().project);
+    });
   });
   viewStore.subscribe((s, prev) => {
     if (s.playhead !== prev.playhead && s.playhead !== enginePlayhead) {

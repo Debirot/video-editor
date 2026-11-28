@@ -113,3 +113,10 @@ As decisões de stack do plano técnico (seção 2) valem como D-001 a D-006.
 - Decisão: mixagem em código no Worker (mix.ts: interpolação linear para 48 kHz estéreo, mesmo envelope do preview), AudioEncoder AAC com Opus como reserva; uma fila de mux por faixa; falha de gravação aborta na hora; composição compartilhada com o preview (compose.ts); diálogo com `@radix-ui/react-dialog` (base do Dialog do shadcn/ui) e selects nativos.
 - Descartadas: exportar o áudio na thread da interface com OfflineAudioContext (bloquearia a interface e duplicaria a mixagem); fila de mux única (deadlock com duas faixas); `@radix-ui/react-select` (mais uma dependência para um select simples).
 - Consequências: reamostragem linear é suficiente para a v1; um reamostrador de melhor qualidade pode entrar na Fase 3 se houver aliasing audível.
+
+### D-019 · 2026-11-28 · Convenções da transformação
+- Contexto: a T2.02 liga `transform` e `crop` do clipe ao compositor, ao inspetor e às alças; os três precisam da mesma conta, e vídeos de celular trazem a rotação só nos metadados.
+- Decisão: x/y em px do projeto a partir do centro (positivo = direita/baixo); escala 1 = caber inteiro (contain) na tela; rotação em graus no sentido horário; opacidade 0..1; recorte em fração de cada lado, escondendo sem mover o resto. A rotação gravada no arquivo (`track.getRotation()` no Worker, `probe.rotation` do ffprobe na interface) é somada antes da do clipe e troca largura e altura no encaixe. Uma função pura (`placeLayer`) serve ao compositor e às alças; o shader recebe uma matriz 3×3 e o retângulo de textura.
+- Descartadas: escala em px absolutos (mudaria ao trocar a resolução do projeto); girar o arquivo na importação (modificaria o original ou exigiria cópia); desenhar as alças no WebGL (o Worker não recebe eventos de ponteiro).
+- Consequências: mudar a resolução do projeto mantém o enquadramento relativo; keyframes (T2.07) vão interpolar esses mesmos campos.
+

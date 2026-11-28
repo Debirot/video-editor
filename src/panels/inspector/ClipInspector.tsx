@@ -2,14 +2,26 @@
  * Inspetor de um clipe (com o clipe ligado, se houver): seções Clipe e Áudio.
  * Toda mudança passa por applyCommand; arrastar um rótulo vira um passo de desfazer.
  */
-import { AudioLines, Film, Image as ImageIcon } from "lucide-react";
+import { AudioLines, Film, Image as ImageIcon, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { NumberField, formatDecimal, parseDecimal } from "@/components/ui/number-field";
 import { formatTimecode, parseTimecode, snapToFrame, type Rational } from "@/lib/time";
 import { baseName } from "@/lib/paths";
 import { projectStore } from "@/project/store";
 import { clipEnd, withLinked } from "@/project/queries";
 import { moveClips, trimBounds, trimClips } from "@/project/commands/clips";
-import { CLIP_GAIN_MAX_DB, CLIP_GAIN_MIN_DB, setClipAudio } from "@/project/commands/clipProps";
+import {
+  CLIP_GAIN_MAX_DB,
+  CLIP_GAIN_MIN_DB,
+  resetClipTransform,
+  SCALE_MAX,
+  SCALE_MIN,
+  setClipAudio,
+  setClipCrop,
+  setClipTransform,
+  type CropPatch,
+  type TransformPatch,
+} from "@/project/commands/clipProps";
 import type { Clip, Media, Project, Track } from "@/project/types";
 import { InspectorRow, InspectorSection } from "./InspectorSection";
 
@@ -103,6 +115,8 @@ export function ClipInspector({ project, clips }: { project: Project; clips: { c
         </InspectorRow>
       </InspectorSection>
 
+      {main.track.kind === "video" && <TransformSection clip={main.clip} disabled={locked} />}
+
       {audio?.clip.audio && (
         <InspectorSection title="Áudio">
           <NumberField
@@ -145,6 +159,82 @@ export function ClipInspector({ project, clips }: { project: Project; clips: { c
           />
         </InspectorSection>
       )}
+    </>
+  );
+}
+
+const pct = (v: number) => `${formatDecimal(v, 0)}%`;
+const px = (v: number) => `${formatDecimal(v, 0)} px`;
+const deg = (v: number) => `${formatDecimal(v, 1).replace(/,0$/, "")}°`;
+
+function TransformSection({ clip, disabled }: { clip: Clip; disabled: boolean }) {
+  const t = clip.transform;
+  const k = clip.crop;
+  const setT = (label: string, patch: TransformPatch) => store().applyCommand(label, setClipTransform([clip.id], patch));
+  const setC = (patch: CropPatch) => store().applyCommand("Recorte", setClipCrop([clip.id], patch));
+  const changed =
+    t.x !== 0 || t.y !== 0 || t.scale !== 1 || t.rotation !== 0 || t.opacity !== 1 || k.left || k.right || k.top || k.bottom;
+
+  return (
+    <>
+      <InspectorSection title="Transformação">
+        <NumberField label="Posição X" value={t.x} step={1} format={px} parse={parseDecimal} onChange={(v) => setT("Mover na tela", { x: v })} disabled={disabled} {...scrubHandlers("Mover na tela")} />
+        <NumberField label="Posição Y" value={t.y} step={1} format={px} parse={parseDecimal} onChange={(v) => setT("Mover na tela", { y: v })} disabled={disabled} {...scrubHandlers("Mover na tela")} />
+        <NumberField
+          label="Escala"
+          value={Math.round(t.scale * 1000) / 10}
+          step={1}
+          min={SCALE_MIN * 100}
+          max={SCALE_MAX * 100}
+          format={pct}
+          parse={parseDecimal}
+          onChange={(v) => setT("Escala", { scale: v / 100 })}
+          disabled={disabled}
+          {...scrubHandlers("Escala")}
+        />
+        <NumberField label="Rotação" value={t.rotation} step={1} min={-3600} max={3600} format={deg} parse={parseDecimal} onChange={(v) => setT("Rotação", { rotation: v })} disabled={disabled} {...scrubHandlers("Rotação")} />
+        <NumberField
+          label="Opacidade"
+          value={Math.round(t.opacity * 100)}
+          step={1}
+          min={0}
+          max={100}
+          format={pct}
+          parse={parseDecimal}
+          onChange={(v) => setT("Opacidade", { opacity: v / 100 })}
+          disabled={disabled}
+          {...scrubHandlers("Opacidade")}
+        />
+        {changed ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="self-start"
+            disabled={disabled}
+            onClick={() => store().applyCommand("Redefinir transformação", resetClipTransform([clip.id]))}
+          >
+            <RotateCcw /> Redefinir
+          </Button>
+        ) : null}
+      </InspectorSection>
+
+      <InspectorSection title="Recorte" defaultOpen={!!(k.left || k.right || k.top || k.bottom)}>
+        {(["left", "right", "top", "bottom"] as const).map((side) => (
+          <NumberField
+            key={side}
+            label={{ left: "Esquerda", right: "Direita", top: "Cima", bottom: "Baixo" }[side]}
+            value={Math.round(k[side] * 100)}
+            step={1}
+            min={0}
+            max={99}
+            format={pct}
+            parse={parseDecimal}
+            onChange={(v) => setC({ [side]: v / 100 })}
+            disabled={disabled}
+            {...scrubHandlers("Recorte")}
+          />
+        ))}
+      </InspectorSection>
     </>
   );
 }

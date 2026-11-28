@@ -1,9 +1,11 @@
 /**
  * Compositor WebGL2. O mesmo código desenha o preview e a exportação.
  *
- * T1.01: desenha um VideoFrame como textura num retângulo. Transformações,
- * efeitos e transições entram como novos shaders atrás desta mesma interface.
+ * Cada camada é um quadrilátero texturizado posicionado por uma matriz (transform.ts):
+ * posição, escala, rotação e recorte. Efeitos e transições entram como novos shaders
+ * atrás desta mesma interface.
  */
+import { placementMatrix, type Placement } from "../transform";
 import { QUAD_VERTEX, TEXTURE_FRAGMENT } from "./shaders";
 
 export interface Rect {
@@ -61,7 +63,8 @@ export class Compositor {
   private readonly program: WebGLProgram;
   private readonly texture: WebGLTexture;
   private readonly vao: WebGLVertexArrayObject;
-  private readonly uRect: WebGLUniformLocation;
+  private readonly uMatrix: WebGLUniformLocation;
+  private readonly uUv: WebGLUniformLocation;
   private readonly uViewport: WebGLUniformLocation;
   private readonly uOpacity: WebGLUniformLocation;
 
@@ -82,7 +85,8 @@ export class Compositor {
     this.gl = gl;
 
     this.program = link(gl, QUAD_VERTEX, TEXTURE_FRAGMENT);
-    this.uRect = gl.getUniformLocation(this.program, "uRect")!;
+    this.uMatrix = gl.getUniformLocation(this.program, "uMatrix")!;
+    this.uUv = gl.getUniformLocation(this.program, "uUv")!;
     this.uViewport = gl.getUniformLocation(this.program, "uViewport")!;
     this.uOpacity = gl.getUniformLocation(this.program, "uOpacity")!;
 
@@ -124,18 +128,30 @@ export class Compositor {
     gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
+  /** Desenha a imagem inteira, sem girar, no retângulo `rect` (usado pela prova técnica). */
+  drawFrame(frame: TexImageSource, rect: Rect, opacity = 1, blend = opacity < 1): void {
+    this.drawPlaced(
+      frame,
+      { cx: rect.x + rect.w / 2, cy: rect.y + rect.h / 2, w: rect.w, h: rect.h, angle: 0, uv: [0, 0, 1, 1] },
+      opacity,
+      blend,
+    );
+  }
+
   /**
    * Envia a imagem direto como textura (um VideoFrame não passa por bitmap na CPU) e
-   * desenha em `rect`. `blend` liga a mistura alfa (PNG com transparência, opacidade < 1).
+   * desenha conforme `p` (transform.ts). `blend` liga a mistura alfa (PNG com
+   * transparência, opacidade < 1).
    */
-  drawFrame(frame: TexImageSource, rect: Rect, opacity = 1, blend = opacity < 1): void {
+  drawPlaced(frame: TexImageSource, p: Placement, opacity = 1, blend = opacity < 1): void {
     const gl = this.gl;
     gl.useProgram(this.program);
     gl.bindVertexArray(this.vao);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
-    gl.uniform4f(this.uRect, rect.x, rect.y, rect.w, rect.h);
+    gl.uniformMatrix3fv(this.uMatrix, false, placementMatrix(p));
+    gl.uniform4f(this.uUv, p.uv[0], p.uv[1], p.uv[2], p.uv[3]);
     gl.uniform2f(this.uViewport, this.width, this.height);
     gl.uniform1f(this.uOpacity, opacity);
     if (blend || opacity < 1) {

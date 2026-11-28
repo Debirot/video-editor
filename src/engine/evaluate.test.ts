@@ -5,8 +5,8 @@ import { frameStart, videoLayersAt } from "./evaluate";
 describe("videoLayersAt", () => {
   it("clipe sob t com tempo na fonte (sourceIn, speed)", () => {
     const p = makeSmallProject(); // V1: c_1 0–2 s; c_2 2–5 s (sourceIn 10 s); c_3 6–8 s (speed 2)
-    expect(videoLayersAt(p, 1_000_000)).toEqual([
-      { clipId: "c_1", mediaId: "m_a", kind: "video", sourceTime: 1_000_000, opacity: 1 },
+    expect(videoLayersAt(p, 1_000_000)).toMatchObject([
+      { clipId: "c_1", mediaId: "m_a", kind: "video", sourceTime: 1_000_000, opacity: 1, transform: { scale: 1 } },
     ]);
     expect(videoLayersAt(p, 3_000_000)[0]!.sourceTime).toBe(11_000_000);
     expect(videoLayersAt(p, 7_000_000)[0]!.sourceTime).toBe(2_000_000);

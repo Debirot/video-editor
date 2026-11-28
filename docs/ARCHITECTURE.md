@@ -129,10 +129,24 @@ Playback: relógio → frameStart(t) → videoLayersAt (evaluate.ts) → Picture
   reaproveita o FrameCursor, para trás ou salto > 2 s recomeça do keyframe; imagens viram
   ImageBitmap uma vez. Usos simultâneos da mesma mídia no mesmo quadro usam "slots" separados.
 - `src/engine/playback.ts`: laço por requestAnimationFrame do Worker; se a composição anterior
-  não terminou, o quadro é descartado e contado. Parado, só o último seek é desenhado, e depois
-  de 1,5 s os quadros guardados são soltos (contador volta a 0).
-- `src/app/engine.ts`: um Worker para o app; envia o projeto a cada mudança e o playhead quando
-  o usuário o move (ignora o eco do que veio do Worker); a timeline acompanha o playhead tocando.
+  não terminou, o quadro é descartado e contado. Parado, só o último seek é desenhado (o redesenho
+  pendente espera a fila de mensagens do Worker esvaziar), e depois de 1,5 s os quadros guardados
+  são soltos (contador volta a 0).
+- `src/app/engine.ts`: um Worker para o app; envia o projeto uma vez por rodada de mudanças
+  (microtarefa: o desfaz-e-reaplica de um arrasto vira um envio só, do estado final) e o playhead
+  quando o usuário o move (ignora o eco do que veio do Worker); a timeline acompanha o playhead tocando.
+
+### Transformação (T2.02)
+- `src/engine/transform.ts` (puro, testado): `placeLayer` calcula onde a camada cai na saída
+  (centro, tamanho, ângulo e recorte em coordenadas de textura) a partir do tamanho da fonte, da
+  rotação gravada no arquivo, do tamanho do projeto e do `transform`/`crop` do clipe.
+  `placementMatrix` vira a matriz do shader; `visibleCorners`, `containsPoint` e `toImage` servem
+  às alças.
+- O compositor desenha cada camada com essa matriz (`drawPlaced`); preview e exportação passam
+  por `drawLayers` em compose.ts, então a conta é a mesma nos dois.
+- `src/panels/preview/TransformHandles.tsx`: SVG sobre o canvas que usa o mesmo `placeLayer`
+  (no tamanho do palco em px CSS) para a moldura cair sobre a imagem. Arrastos usam transação
+  como os gestos da timeline.
 
 ### Áudio (T1.08)
 ```

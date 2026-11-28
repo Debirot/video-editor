@@ -41,7 +41,7 @@ export async function exportProject(
         const layers = videoLayersAt(project, t);
         // Na exportação uma mídia ilegível é erro (no preview a camada só some).
         const pics = await gatherPictures(pictures, layers, fail);
-        drawLayers(compositor, project.settings.background, layers, pics);
+        drawLayers(compositor, project.settings.background, project.settings, layers, pics);
       },
       audio: async (from, to) => {
         const out = silence(from, to);

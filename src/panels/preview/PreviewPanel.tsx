@@ -13,6 +13,7 @@ import { useView, viewStore } from "@/app/viewStore";
 import { runAction } from "@/app/editActions";
 import { attachPreviewCanvas, onEngineError, togglePlay } from "@/app/engine";
 import type { PreviewQuality } from "@/engine/messages";
+import { TransformHandles } from "./TransformHandles";
 
 const QUALITIES: { scale: PreviewQuality; label: string }[] = [
   { scale: 1, label: "Completa" },
@@ -55,6 +56,7 @@ export function PreviewPanel() {
           }}
         >
           <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-label="Imagem do preview" />
+          {!empty && <TransformHandles />}
           {empty && (
             <div className="relative flex flex-col items-center gap-2 px-6 text-center">
               <Clapperboard className="size-8 text-text-2" strokeWidth={1.25} />

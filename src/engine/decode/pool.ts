@@ -18,12 +18,14 @@ export interface Picture {
   image: VideoFrame | ImageBitmap;
   width: number;
   height: number;
+  /** Rotação gravada no arquivo (vídeo de celular), em graus no sentido horário. */
+  rotation: number;
 }
 
 interface VideoEntry {
   kind: "video";
   url: string;
-  ready: Promise<{ input: Input; track: InputVideoTrack; config: VideoDecoderConfig; firstTs: Us }>;
+  ready: Promise<{ input: Input; track: InputVideoTrack; config: VideoDecoderConfig; firstTs: Us; rotation: number }>;
   cursor: FrameCursor | null;
   /** Último tempo pedido (no relógio do arquivo). */
   last: Us;
@@ -46,7 +48,7 @@ async function openVideo(url: string) {
     // Referência do arquivo inteiro (não só da trilha de vídeo): o áudio usa a mesma,
     // então imagem e som ficam alinhados mesmo quando uma trilha começa depois da outra.
     const firstTs = secondsToUs(await input.getFirstTimestamp());
-    return { input, track, config: picked.config, firstTs };
+    return { input, track, config: picked.config, firstTs, rotation: await track.getRotation() };
   } catch (e) {
     input.dispose();
     throw e;
@@ -96,10 +98,10 @@ export class PicturePool {
 
     if (entry.kind === "image") {
       const bitmap = await entry.ready;
-      return { image: bitmap, width: bitmap.width, height: bitmap.height };
+      return { image: bitmap, width: bitmap.width, height: bitmap.height, rotation: 0 };
     }
 
-    const { track, config, firstTs } = await entry.ready;
+    const { track, config, firstTs, rotation } = await entry.ready;
     const t = sourceUs + firstTs;
     if (!entry.cursor || t < entry.last || t > entry.last + JUMP_US) {
       await entry.cursor?.close();
@@ -107,7 +109,7 @@ export class PicturePool {
     }
     entry.last = t;
     const frame = await entry.cursor.frameAt(t);
-    return frame ? { image: frame, width: frame.displayWidth, height: frame.displayHeight } : null;
+    return frame ? { image: frame, width: frame.displayWidth, height: frame.displayHeight, rotation } : null;
   }
 
   /** Solta os quadros guardados (o contador de VideoFrames volta a zero), mantendo os arquivos abertos. */

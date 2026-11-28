@@ -40,3 +40,37 @@ describe("setClipAudio", () => {
     expect(execute(locked, "v", setClipAudio(["c_a"], { gainDb: -3 }))).toBe(locked);
   });
 });
+
+import { resetClipTransform, setClipCrop, setClipTransform } from "./clipProps";
+
+describe("setClipTransform / setClipCrop / resetClipTransform", () => {
+  const start = () => ({ project: makeSmallProject(), history: emptyHistory() });
+  const clip1 = (s: { project: ReturnType<typeof makeSmallProject> }) => s.project.tracks[0]!.clips[0]!;
+
+  it("muda e limita a transformação; desfaz em um passo", () => {
+    const s0 = start();
+    const s1 = execute(s0, "t", setClipTransform(["c_1"], { x: 100.04, y: -50, scale: 50, rotation: 45, opacity: 2 }));
+    expect(clip1(s1).transform).toEqual({ x: 100, y: -50, scale: 10, rotation: 45, opacity: 1 });
+    expect(execute(s1, "t", setClipTransform(["c_1"], { scale: 0 })).project.tracks[0]!.clips[0]!.transform.scale).toBe(0.01);
+    expect(undo(s1).project).toEqual(s0.project);
+  });
+
+  it("recorte: o lado editado empurra o oposto e sempre sobra algo visível", () => {
+    let s = start();
+    s = execute(s, "c", setClipCrop(["c_1"], { left: 0.7 }));
+    s = execute(s, "c", setClipCrop(["c_1"], { right: 0.5 }));
+    expect(clip1(s).crop).toMatchObject({ left: 0.49, right: 0.5 });
+    s = execute(s, "c", setClipCrop(["c_1"], { top: 2 }));
+    expect(clip1(s).crop.top).toBe(0.99);
+  });
+
+  it("redefinir volta ao padrão; clipe de áudio e trilha travada são ignorados", () => {
+    let s = execute(start(), "t", setClipTransform(["c_1"], { x: 5, scale: 2 }));
+    s = execute(s, "c", setClipCrop(["c_1"], { left: 0.2 }));
+    s = execute(s, "r", resetClipTransform(["c_1"]));
+    expect(clip1(s).transform).toEqual({ x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 });
+    expect(clip1(s).crop).toEqual({ left: 0, top: 0, right: 0, bottom: 0 });
+    const locked = execute(start(), "l", (d) => void (d.tracks[0]!.locked = true));
+    expect(execute(locked, "t", setClipTransform(["c_1"], { x: 5 }))).toBe(locked);
+  });
+});

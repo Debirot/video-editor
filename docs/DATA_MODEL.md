@@ -40,6 +40,10 @@ Detalhes que importam:
   Efeitos usam o id, então reordenar efeitos não quebra animações.
 - Uma transição exige mídia sobrando além do corte nos dois clipes; o comando que a cria verifica.
 - `linkGroup` liga vídeo e áudio importados do mesmo arquivo.
+- `transform`: `x`/`y` em px do projeto a partir do centro; `scale` 1 = a mídia inteira cabendo na
+  tela (0,01 a 10); `rotation` em graus, sentido horário (±3600); `opacity` 0 a 1.
+  `crop`: fração escondida de cada lado (0 a 0,99), sem mover o resto. A rotação gravada no arquivo
+  (`probe.rotation`, vídeos de celular) é aplicada antes e não aparece em `transform` (D-019).
 
 ## Ids
 

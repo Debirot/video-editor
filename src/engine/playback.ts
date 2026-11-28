@@ -182,15 +182,17 @@ export class Playback {
         this.post({ type: "error", context: "preview", message: e instanceof Error ? e.message : String(e) });
       });
       const c = this.compositor;
-      drawLayers(c, project.settings.background, layers, pictures);
+      drawLayers(c, project.settings.background, project.settings, layers, pictures);
       c.gl.flush();
     } finally {
       this.rendering = false;
       this.lastRenderMs = performance.now() - started;
       if (!this.playing) {
         if (this.renderAgain) {
+          // Deixa as mensagens que chegaram durante o desenho serem lidas antes,
+          // para desenhar só o estado mais novo (e não um por mensagem).
           this.renderAgain = false;
-          void this.render(this.snapped(this.target));
+          setTimeout(() => this.requestRender(), 0);
         } else {
           this.scheduleIdleRelease();
         }

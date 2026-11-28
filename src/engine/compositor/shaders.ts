@@ -3,15 +3,20 @@
  * exigem atualizar os quadros de referência em tests/golden/.
  */
 
-/** Quadro em coordenadas de pixel do destino; uRect = x, y, largura, altura. */
+/**
+ * Quadrilátero da imagem: aPos percorre 0..1; uUv escolhe a parte visível (recorte);
+ * uMatrix leva (u, v) a px do destino (posição, escala e rotação, transform.ts).
+ */
 export const QUAD_VERTEX = /* glsl */ `#version 300 es
 in vec2 aPos;
-uniform vec4 uRect;
+uniform mat3 uMatrix;
+uniform vec4 uUv;
 uniform vec2 uViewport;
 out vec2 vUv;
 void main() {
-  vUv = aPos;
-  vec2 px = uRect.xy + aPos * uRect.zw;
+  vec2 uv = mix(uUv.xy, uUv.zw, aPos);
+  vUv = uv;
+  vec2 px = (uMatrix * vec3(uv, 1.0)).xy;
   vec2 clip = (px / uViewport) * 2.0 - 1.0;
   // Origem no canto superior esquerdo, como no canvas 2D e no VideoFrame.
   gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);

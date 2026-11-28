@@ -5,7 +5,7 @@
  */
 import { frameToUs, usToFrame, type Rational, type Us } from "@/lib/time";
 import { clipAt, sourceTimeAt } from "@/project/queries";
-import type { Id, Project } from "@/project/types";
+import type { Crop, Id, Project, Transform } from "@/project/types";
 
 export interface VideoLayer {
   clipId: Id;
@@ -14,6 +14,8 @@ export interface VideoLayer {
   /** Tempo na fonte (µs desde o início da mídia). */
   sourceTime: Us;
   opacity: number;
+  transform: Transform;
+  crop: Crop;
 }
 
 /** Início do quadro do projeto que contém t. */
@@ -38,6 +40,8 @@ export function videoLayersAt(project: Project, t: Us): VideoLayer[] {
       kind: m.kind,
       sourceTime: m.kind === "image" ? 0 : Math.min(Math.max(0, sourceTimeAt(clip, t)), last),
       opacity: clip.transform.opacity,
+      transform: clip.transform,
+      crop: clip.crop,
     });
   }
   return layers;
