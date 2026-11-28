@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeClip, makeSmallProject } from "@/project/fixtures";
+import { DEFAULT_SHAPES } from "@/project/normalize";
 import { frameStart, videoLayersAt } from "./evaluate";
 
 describe("videoLayersAt", () => {
@@ -8,8 +9,8 @@ describe("videoLayersAt", () => {
     expect(videoLayersAt(p, 1_000_000)).toMatchObject([
       { clipId: "c_1", mediaId: "m_a", kind: "video", sourceTime: 1_000_000, opacity: 1, transform: { scale: 1 } },
     ]);
-    expect(videoLayersAt(p, 3_000_000)[0]!.sourceTime).toBe(11_000_000);
-    expect(videoLayersAt(p, 7_000_000)[0]!.sourceTime).toBe(2_000_000);
+    expect(videoLayersAt(p, 3_000_000)[0]).toMatchObject({ sourceTime: 11_000_000 });
+    expect(videoLayersAt(p, 7_000_000)[0]).toMatchObject({ sourceTime: 2_000_000 });
     expect(videoLayersAt(p, 5_500_000)).toEqual([]); // buraco
   });
 
@@ -34,10 +35,25 @@ describe("videoLayersAt", () => {
     expect(videoLayersAt(p, 1_000_000)).toEqual([]);
   });
 
+  it("forma entra como camada própria, sem mídia; forma sem estilo não entra", () => {
+    const p = makeSmallProject();
+    const shape = { ...DEFAULT_SHAPES.ellipse, fill: "#ff0000" };
+    p.tracks.splice(1, 0, {
+      ...structuredClone(p.tracks[0]!),
+      id: "t_v2",
+      clips: [
+        makeClip({ id: "c_s", kind: "shape", mediaId: undefined, start: 0, duration: 1_000_000, shape }),
+        makeClip({ id: "c_x", kind: "shape", mediaId: undefined, start: 1_000_000, duration: 1_000_000 }),
+      ],
+    });
+    expect(videoLayersAt(p, 500_000)).toMatchObject([{ clipId: "c_1", kind: "video" }, { clipId: "c_s", kind: "shape", shape }]);
+    expect(videoLayersAt(p, 1_500_000).map((l) => l.clipId)).toEqual(["c_1"]);
+  });
+
   it("tempo na fonte nunca passa do fim da mídia", () => {
     const p = makeSmallProject();
     p.media[0]!.probe.duration = 10_500_000; // c_2 começa em 10 s da fonte
-    expect(videoLayersAt(p, 4_000_000)[0]!.sourceTime).toBe(10_499_999);
+    expect(videoLayersAt(p, 4_000_000)[0]).toMatchObject({ sourceTime: 10_499_999 });
   });
 });
 

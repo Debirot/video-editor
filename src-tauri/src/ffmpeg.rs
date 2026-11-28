@@ -53,17 +53,38 @@ pub fn probe_args(input: &Path) -> Vec<OsString> {
 }
 
 /// Um quadro em `at_us`, com largura `width` (altura proporcional e par), em JPEG.
-/// `-ss` antes de `-i` faz seek rápido por keyframe.
-pub fn poster_args(input: &Path, output: &Path, at_us: i64, width: u32) -> Vec<OsString> {
+/// `-ss` antes de `-i` faz seek rápido por keyframe; em 0 ele fica de fora, porque com
+/// `-ss 0` o FFmpeg 6 não entrega nenhum quadro de um JPEG (a foto ficava sem pôster).
+/// `rotate` (graus no sentido horário) gira explicitamente, sem a rotação automática do
+/// FFmpeg: usado nas fotos com giro no EXIF, que nem toda versão do FFmpeg aplica.
+pub fn poster_args(
+    input: &Path,
+    output: &Path,
+    at_us: i64,
+    width: u32,
+    rotate: Option<u16>,
+) -> Vec<OsString> {
     let mut args = base_args();
-    args.extend(["-ss".into(), format_seconds(at_us).into(), "-i".into()]);
+    let turn = match rotate {
+        Some(90) => "transpose=1,",
+        Some(180) => "hflip,vflip,",
+        Some(270) => "transpose=2,",
+        _ => "",
+    };
+    if !turn.is_empty() {
+        args.push("-noautorotate".into());
+    }
+    if at_us > 0 {
+        args.extend(["-ss".into(), format_seconds(at_us).into()]);
+    }
+    args.push("-i".into());
     args.push(input.as_os_str().to_owned());
     args.extend(
         ["-frames:v", "1", "-an", "-vf"]
             .iter()
             .map(OsString::from)
             .chain([
-                OsString::from(format!("scale={width}:-2")),
+                OsString::from(format!("{turn}scale={width}:-2")),
                 "-q:v".into(),
                 "4".into(),
                 "-y".into(),
@@ -302,7 +323,13 @@ pub async fn probe(input: &Path) -> Result<(MediaKind, MediaProbe), String> {
     parse_probe(&String::from_utf8_lossy(&stdout))
 }
 
-pub async fn poster(input: &Path, output: &Path, at_us: i64, width: u32) -> Result<(), String> {
+pub async fn poster(
+    input: &Path,
+    output: &Path,
+    at_us: i64,
+    width: u32,
+    rotate: Option<u16>,
+) -> Result<(), String> {
     if let Some(dir) = output.parent() {
         tokio::fs::create_dir_all(dir)
             .await
@@ -310,7 +337,11 @@ pub async fn poster(input: &Path, output: &Path, at_us: i64, width: u32) -> Resu
     }
     // Grava num temporário e renomeia: um pôster pela metade nunca aparece.
     let tmp = output.with_extension("tmp.jpg");
-    run(&binary("ffmpeg"), &poster_args(input, &tmp, at_us, width)).await?;
+    run(
+        &binary("ffmpeg"),
+        &poster_args(input, &tmp, at_us, width, rotate),
+    )
+    .await?;
     tokio::fs::rename(&tmp, output)
         .await
         .map_err(|e| e.to_string())
@@ -357,6 +388,7 @@ mod tests {
             Path::new("out.jpg"),
             9_500_000,
             320,
+            None,
         ));
         assert_eq!(
             args,
@@ -382,6 +414,38 @@ mod tests {
         );
         // -ss vem antes de -i (seek rápido).
         assert!(args.iter().position(|a| a == "-ss") < args.iter().position(|a| a == "-i"));
+    }
+
+    #[test]
+    fn poster_of_rotated_photo_turns_explicitly() {
+        let args = strs(&poster_args(
+            Path::new("foto.jpg"),
+            Path::new("out.jpg"),
+            0,
+            320,
+            Some(90),
+        ));
+        // Instante 0 (fotos): sem -ss.
+        assert!(!args.contains(&"-ss".to_string()));
+        let noauto = args.iter().position(|a| a == "-noautorotate").unwrap();
+        assert!(noauto < args.iter().position(|a| a == "-i").unwrap());
+        assert!(args.contains(&"transpose=1,scale=320:-2".to_string()));
+        let upside = strs(&poster_args(
+            Path::new("a"),
+            Path::new("b"),
+            0,
+            320,
+            Some(180),
+        ));
+        assert!(upside.contains(&"hflip,vflip,scale=320:-2".to_string()));
+        let left = strs(&poster_args(
+            Path::new("a"),
+            Path::new("b"),
+            0,
+            320,
+            Some(270),
+        ));
+        assert!(left.contains(&"transpose=2,scale=320:-2".to_string()));
     }
 
     const PHONE_VIDEO: &str = r#"{
@@ -512,11 +576,44 @@ mod tests {
         assert_eq!(p.duration, 2_000_000);
 
         let out = dir.path().join("cache").join("poster.jpg");
-        poster(&input, &out, 200_000, 160).await.unwrap();
+        poster(&input, &out, 200_000, 160, None).await.unwrap();
         let bytes = std::fs::read(&out).unwrap();
         assert_eq!(&bytes[..2], &[0xFF, 0xD8], "JPEG válido");
         assert!(!out.with_extension("tmp.jpg").exists());
 
         assert!(probe(&dir.path().join("nao-existe.mp4")).await.is_err());
+
+        // Foto JPEG: o pôster sai (instante 0) e em pé (640×360 girada → 160×284).
+        let photo = dir.path().join("foto.jpg");
+        let status = std::process::Command::new("ffmpeg")
+            .args([
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc2=size=640x360",
+                "-frames:v",
+                "1",
+            ])
+            .arg(&photo)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        let out = dir.path().join("cache").join("foto.jpg");
+        poster(&photo, &out, 0, 160, Some(90)).await.unwrap();
+        let probe_out = std::process::Command::new("ffprobe")
+            .args([
+                "-v",
+                "error",
+                "-show_entries",
+                "stream=width,height",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(&out)
+            .output()
+            .unwrap();
+        assert_eq!(String::from_utf8_lossy(&probe_out.stdout).trim(), "160,284");
     }
 }

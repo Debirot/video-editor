@@ -1,15 +1,19 @@
 /**
- * Inspetor de um clipe (com o clipe ligado, se houver): seções Clipe e Áudio.
+ * Inspetor de um clipe (com o clipe ligado, se houver): seções Clipe, Forma,
+ * Transformação, Recorte e Áudio, conforme o tipo do clipe.
  * Toda mudança passa por applyCommand; arrastar um rótulo vira um passo de desfazer.
  */
-import { AudioLines, Film, Image as ImageIcon, RotateCcw } from "lucide-react";
+import { AudioLines, Circle, Film, Image as ImageIcon, Minus, RotateCcw, Square, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ColorField } from "@/components/ui/color-field";
 import { NumberField, formatDecimal, parseDecimal } from "@/components/ui/number-field";
 import { formatTimecode, parseTimecode, snapToFrame, type Rational } from "@/lib/time";
 import { baseName } from "@/lib/paths";
 import { projectStore } from "@/project/store";
+import { DEFAULT_SHAPES } from "@/project/normalize";
 import { clipEnd, withLinked } from "@/project/queries";
 import { moveClips, trimBounds, trimClips } from "@/project/commands/clips";
+import { setClipShape, SHAPE_NAMES, SHAPE_SIZE_MAX, SHAPE_STROKE_MAX, type ShapePatch } from "@/project/commands/shapes";
 import {
   CLIP_GAIN_MAX_DB,
   CLIP_GAIN_MIN_DB,
@@ -22,7 +26,7 @@ import {
   type CropPatch,
   type TransformPatch,
 } from "@/project/commands/clipProps";
-import type { Clip, Media, Project, Track } from "@/project/types";
+import type { Clip, Media, Project, ShapeStyle, ShapeType, Track } from "@/project/types";
 import { InspectorRow, InspectorSection } from "./InspectorSection";
 
 const store = () => projectStore.getState();
@@ -76,7 +80,9 @@ export function ClipInspector({ project, clips }: { project: Project; clips: { c
   const media: Media | undefined = project.media.find((m) => m.id === main.clip.mediaId);
   const locked = clips.some((c) => c.track.locked);
   const ids = withLinked(project, [main.clip.id]);
-  const Icon = media?.kind === "audio" ? AudioLines : media?.kind === "image" ? ImageIcon : Film;
+  const shape = main.clip.kind === "shape" ? main.clip.shape : undefined;
+  const Icon = shape ? SHAPE_ICONS[shape.type] : media?.kind === "audio" ? AudioLines : media?.kind === "image" ? ImageIcon : Film;
+  const title = shape ? SHAPE_NAMES[shape.type] : media ? baseName(media.path) : "Clipe";
 
   const setStart = (t: number) => {
     const delta = t - main.clip.start;
@@ -96,7 +102,7 @@ export function ClipInspector({ project, clips }: { project: Project; clips: { c
       <header className="flex h-10 shrink-0 items-center gap-2 px-3">
         <Icon className="size-4 shrink-0 text-text-2" />
         <h2 className="truncate text-title font-semibold" title={media?.path}>
-          {media ? baseName(media.path) : "Clipe"}
+          {title}
         </h2>
       </header>
       {locked && <p className="px-3 pb-2 text-label text-text-2">Trilha travada: destrave para editar.</p>}
@@ -104,18 +110,21 @@ export function ClipInspector({ project, clips }: { project: Project; clips: { c
       <InspectorSection title="Clipe">
         <TimecodeField label="Início" value={main.clip.start} fps={fps} onChange={setStart} disabled={locked} />
         <TimecodeField label="Duração" value={main.clip.duration} fps={fps} onChange={setDuration} disabled={locked} />
-        <InspectorRow label="Na mídia">
-          <span className="tabular text-text-2">
-            {formatTimecode(main.clip.sourceIn, fps)}
-            {main.clip.speed !== 1 && ` · ${Math.round(main.clip.speed * 100)}%`}
-          </span>
-        </InspectorRow>
+        {main.clip.mediaId && (
+          <InspectorRow label="Na mídia">
+            <span className="tabular text-text-2">
+              {formatTimecode(main.clip.sourceIn, fps)}
+              {main.clip.speed !== 1 && ` · ${Math.round(main.clip.speed * 100)}%`}
+            </span>
+          </InspectorRow>
+        )}
         <InspectorRow label="Trilha">
           <span className="text-text-2">{clips.map((c) => c.track.name).join(" + ")}</span>
         </InspectorRow>
       </InspectorSection>
 
-      {main.track.kind === "video" && <TransformSection clip={main.clip} disabled={locked} />}
+      {shape && <ShapeSection clip={main.clip} shape={shape} disabled={locked} />}
+      {main.track.kind === "video" && <TransformSection clip={main.clip} disabled={locked} crop={!shape} />}
 
       {audio?.clip.audio && (
         <InspectorSection title="Áudio">
@@ -167,7 +176,70 @@ const pct = (v: number) => `${formatDecimal(v, 0)}%`;
 const px = (v: number) => `${formatDecimal(v, 0)} px`;
 const deg = (v: number) => `${formatDecimal(v, 1).replace(/,0$/, "")}°`;
 
-function TransformSection({ clip, disabled }: { clip: Clip; disabled: boolean }) {
+const SHAPE_ICONS: Record<ShapeType, LucideIcon> = { rect: Square, ellipse: Circle, line: Minus };
+
+function ShapeSection({ clip, shape, disabled }: { clip: Clip; shape: ShapeStyle; disabled: boolean }) {
+  const set = (label: string, patch: ShapePatch) => store().applyCommand(label, setClipShape([clip.id], patch));
+  const pickHandlers = (label: string) => ({
+    onPickStart: () => store().beginTransaction(label),
+    onPickEnd: () => store().commitTransaction(),
+  });
+  const line = shape.type === "line";
+  const strokeLabel = line ? "Cor da linha" : "Cor do contorno";
+  return (
+    <InspectorSection title="Forma">
+      <div className="grid grid-cols-[96px_1fr] items-center gap-2">
+        <span className="text-label text-text-2">Tipo</span>
+        <div className="flex gap-1" role="group" aria-label="Tipo de forma">
+          {(Object.keys(SHAPE_NAMES) as ShapeType[]).map((type) => {
+            const TypeIcon = SHAPE_ICONS[type];
+            const active = shape.type === type;
+            return (
+              <Button
+                key={type}
+                variant="ghost"
+                size="icon"
+                aria-label={SHAPE_NAMES[type]}
+                aria-pressed={active}
+                title={SHAPE_NAMES[type]}
+                className={active ? "bg-bg-2 text-accent hover:text-accent" : undefined}
+                disabled={disabled}
+                onClick={() => set("Tipo de forma", { type })}
+              >
+                <TypeIcon />
+              </Button>
+            );
+          })}
+        </div>
+      </div>
+      <NumberField label={line ? "Comprimento" : "Largura"} value={shape.width} step={1} min={1} max={SHAPE_SIZE_MAX} format={px} parse={parseDecimal} onChange={(v) => set("Tamanho da forma", { width: v })} disabled={disabled} {...scrubHandlers("Tamanho da forma")} />
+      {!line && (
+        <NumberField label="Altura" value={shape.height} step={1} min={1} max={SHAPE_SIZE_MAX} format={px} parse={parseDecimal} onChange={(v) => set("Tamanho da forma", { height: v })} disabled={disabled} {...scrubHandlers("Tamanho da forma")} />
+      )}
+      {shape.type === "rect" && (
+        <NumberField label="Cantos" value={shape.radius} step={1} min={0} max={Math.floor(Math.min(shape.width, shape.height) / 2)} format={px} parse={parseDecimal} onChange={(v) => set("Cantos", { radius: v })} disabled={disabled} {...scrubHandlers("Cantos")} />
+      )}
+      {!line && (
+        <ColorField label="Preenchimento" value={shape.fill} noneFallback={DEFAULT_SHAPES[shape.type].fill} onChange={(v) => set("Preenchimento", { fill: v })} disabled={disabled} {...pickHandlers("Preenchimento")} />
+      )}
+      <ColorField label={line ? "Cor" : "Contorno"} value={shape.stroke} onChange={(v) => set(strokeLabel, { stroke: v })} disabled={disabled} {...pickHandlers(strokeLabel)} />
+      <NumberField
+        label="Espessura"
+        value={shape.strokeWidth}
+        step={1}
+        min={line ? 1 : 0}
+        max={SHAPE_STROKE_MAX}
+        format={(v) => (v === 0 ? "sem contorno" : px(v))}
+        parse={parseDecimal}
+        onChange={(v) => set("Espessura", { strokeWidth: v })}
+        disabled={disabled}
+        {...scrubHandlers("Espessura")}
+      />
+    </InspectorSection>
+  );
+}
+
+function TransformSection({ clip, disabled, crop }: { clip: Clip; disabled: boolean; crop: boolean }) {
   const t = clip.transform;
   const k = clip.crop;
   const setT = (label: string, patch: TransformPatch) => store().applyCommand(label, setClipTransform([clip.id], patch));
@@ -218,23 +290,25 @@ function TransformSection({ clip, disabled }: { clip: Clip; disabled: boolean })
         ) : null}
       </InspectorSection>
 
-      <InspectorSection title="Recorte" defaultOpen={!!(k.left || k.right || k.top || k.bottom)}>
-        {(["left", "right", "top", "bottom"] as const).map((side) => (
-          <NumberField
-            key={side}
-            label={{ left: "Esquerda", right: "Direita", top: "Cima", bottom: "Baixo" }[side]}
-            value={Math.round(k[side] * 100)}
-            step={1}
-            min={0}
-            max={99}
-            format={pct}
-            parse={parseDecimal}
-            onChange={(v) => setC({ [side]: v / 100 })}
-            disabled={disabled}
-            {...scrubHandlers("Recorte")}
-          />
-        ))}
-      </InspectorSection>
+      {crop && (
+        <InspectorSection title="Recorte" defaultOpen={!!(k.left || k.right || k.top || k.bottom)}>
+          {(["left", "right", "top", "bottom"] as const).map((side) => (
+            <NumberField
+              key={side}
+              label={{ left: "Esquerda", right: "Direita", top: "Cima", bottom: "Baixo" }[side]}
+              value={Math.round(k[side] * 100)}
+              step={1}
+              min={0}
+              max={99}
+              format={pct}
+              parse={parseDecimal}
+              onChange={(v) => setC({ [side]: v / 100 })}
+              disabled={disabled}
+              {...scrubHandlers("Recorte")}
+            />
+          ))}
+        </InspectorSection>
+      )}
     </>
   );
 }

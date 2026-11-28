@@ -6,11 +6,13 @@ import type { Compositor } from "./compositor/compositor";
 import { placeLayer, type Size } from "./transform";
 import type { PicturePool, Picture } from "./decode/pool";
 import type { VideoLayer } from "./evaluate";
+import { shapeImage, shapeSize } from "./shapes";
 
 /**
  * Busca as imagens de todas as camadas antes de desenhar (o quadro aparece inteiro).
  * Usos simultâneos da mesma mídia no mesmo quadro vão para slots diferentes do pool.
  * Falha numa camada vira null e é informada por `onError` (a camada fica de fora).
+ * Formas não vêm do pool (null aqui): são desenhadas em drawLayers.
  */
 export async function gatherPictures(
   pool: PicturePool,
@@ -20,6 +22,10 @@ export async function gatherPictures(
   const used = new Map<string, number>();
   const pictures: (Picture | null)[] = [];
   for (const layer of layers) {
+    if (layer.kind === "shape") {
+      pictures.push(null);
+      continue;
+    }
     const slot = used.get(layer.mediaId) ?? 0;
     used.set(layer.mediaId, slot + 1);
     try {
@@ -47,8 +53,15 @@ export function drawLayers(
   c.clear(background);
   const out = { width: c.width, height: c.height };
   layers.forEach((layer, i) => {
+    if (layer.opacity <= 0) return;
+    if (layer.kind === "shape") {
+      const image = shapeImage(layer.shape, out.width / project.width, layer.transform.scale);
+      const placement = placeLayer(shapeSize(layer.shape), out, project, layer.transform, layer.crop);
+      c.drawPlaced(image, placement, layer.opacity, true);
+      return;
+    }
     const pic = pictures[i];
-    if (!pic || layer.opacity <= 0) return;
+    if (!pic) return;
     const placement = placeLayer(pic, out, project, layer.transform, layer.crop);
     const blend = layer.kind === "image" || layer.opacity < 1;
     c.drawPlaced(pic.image, placement, layer.opacity, blend);

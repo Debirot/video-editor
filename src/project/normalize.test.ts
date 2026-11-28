@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createProject, normalizeProject, ProjectFormatError, serializeProject } from "./normalize";
+import { createProject, DEFAULT_SHAPES, normalizeProject, ProjectFormatError, serializeProject } from "./normalize";
 import { makeSmallProject } from "./fixtures";
 import { trackProblems } from "./queries";
 
@@ -24,6 +24,29 @@ describe("normalizeProject", () => {
     expect(p.settings.fps).toEqual({ num: 30, den: 1 });
     expect(p.media).toEqual([]);
     expect(p.tracks[0]!.muted).toBe(false);
+  });
+
+  it("forma: completa o estilo com o padrão do tipo e corrige tipo desconhecido", () => {
+    const p = normalizeProject({
+      schemaVersion: 1,
+      id: "p_1",
+      name: "Formas",
+      tracks: [
+        {
+          id: "t_1",
+          kind: "video",
+          clips: [
+            { id: "c_1", kind: "shape", start: 0, duration: 1_000_000, shape: { type: "ellipse", fill: "#ff0000" } },
+            { id: "c_2", kind: "shape", start: 1_000_000, duration: 1_000_000, shape: { type: "estrela" } },
+            { id: "c_3", kind: "shape", start: 2_000_000, duration: 1_000_000 },
+          ],
+        },
+      ],
+    });
+    const [a, b, c] = p.tracks[0]!.clips;
+    expect(a!.shape).toEqual({ ...DEFAULT_SHAPES.ellipse, fill: "#ff0000" });
+    expect(b!.shape).toEqual(DEFAULT_SHAPES.rect);
+    expect(c!.shape).toEqual(DEFAULT_SHAPES.rect);
   });
 
   it("ordena clipes por start", () => {

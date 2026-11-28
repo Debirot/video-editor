@@ -9,6 +9,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::cache::Cache;
+use crate::exif;
 use crate::ffmpeg::{self, MediaKind};
 use crate::jobs::{JobQueue, Priority};
 use crate::media::{self, ImportOutcome, ImportedMedia};
@@ -97,7 +98,7 @@ async fn import_one(app: &AppHandle, path: PathBuf) -> ImportOutcome {
 
 async fn try_import(app: &AppHandle, path: &std::path::Path) -> Result<ImportedMedia, String> {
     let queue = app.state::<Arc<JobQueue>>().inner().clone();
-    let (fingerprint, (kind, probe)) = {
+    let (fingerprint, (kind, mut probe)) = {
         let _slot = queue.acquire(Priority::High).await;
         let p = path.to_path_buf();
         let fingerprint = tokio::task::spawn_blocking(move || media::fingerprint(&p))
@@ -106,6 +107,13 @@ async fn try_import(app: &AppHandle, path: &std::path::Path) -> Result<ImportedM
             .map_err(|e| describe(path, e))?;
         (fingerprint, ffmpeg::probe(path).await?)
     };
+    // Foto de celular: o giro está no EXIF, que o ffprobe nem sempre informa.
+    if kind == MediaKind::Image && probe.rotation.is_none() {
+        let p = path.to_path_buf();
+        probe.rotation = tokio::task::spawn_blocking(move || exif::read_rotation(&p))
+            .await
+            .unwrap_or(None);
+    }
     app.state::<MediaState>()
         .allow(path)
         .map_err(|e| describe(path, e))?;
@@ -124,12 +132,16 @@ async fn try_import(app: &AppHandle, path: &std::path::Path) -> Result<ImportedM
             if !queue.is_active(&key) {
                 let input = path.to_path_buf();
                 let at = media::poster_time(kind, probe.duration);
+                // Vídeo gira sozinho (rotação automática do FFmpeg); foto, pelo EXIF lido acima.
+                let rotate = (kind == MediaKind::Image)
+                    .then_some(probe.rotation)
+                    .flatten();
                 let app = app.clone();
                 let done_hash = hash.clone();
                 queue.spawn(
                     key.clone(),
                     Priority::High,
-                    async move { ffmpeg::poster(&input, &poster_file, at, POSTER_WIDTH).await },
+                    async move { ffmpeg::poster(&input, &poster_file, at, POSTER_WIDTH, rotate).await },
                     move |result| {
                         let event = JobDone {
                             key,

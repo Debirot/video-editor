@@ -55,10 +55,47 @@ async function openVideo(url: string) {
   }
 }
 
+/** Maior lado de uma imagem fixa na memória e na GPU (fotos de 48 MP viram 4096 px). */
+export const MAX_IMAGE_SIDE = 4096;
+
+/**
+ * Lê o arquivo inteiro. O media:// entrega no máximo 2 MB por resposta a arquivos grandes,
+ * então a leitura segue por faixas (Range) até o tamanho total do Content-Range.
+ */
+async function fetchWhole(url: string): Promise<Blob> {
+  const parts: Blob[] = [];
+  let pos = 0;
+  let total = Infinity;
+  while (pos < total) {
+    const res = await fetch(url, { headers: { Range: `bytes=${pos}-` } });
+    if (res.status === 200) return res.blob();
+    if (res.status !== 206) throw new Error(`imagem não encontrada (${res.status})`);
+    const size = /\/(\d+)\s*$/.exec(res.headers.get("Content-Range") ?? "");
+    if (!size) throw new Error("resposta sem Content-Range");
+    total = Number(size[1]);
+    const part = await res.blob();
+    if (part.size === 0) throw new Error("leitura da imagem parou no meio");
+    parts.push(part);
+    pos += part.size;
+  }
+  return new Blob(parts);
+}
+
+/** Decodifica já girada pelo EXIF (foto de celular) e reduz se passar de MAX_IMAGE_SIDE. */
 async function openImage(url: string): Promise<ImageBitmap> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`imagem não encontrada (${res.status})`);
-  return createImageBitmap(await res.blob(), { imageOrientation: "from-image" });
+  const bitmap = await createImageBitmap(await fetchWhole(url), { imageOrientation: "from-image" });
+  const longest = Math.max(bitmap.width, bitmap.height);
+  if (longest <= MAX_IMAGE_SIDE) return bitmap;
+  const k = MAX_IMAGE_SIDE / longest;
+  try {
+    return await createImageBitmap(bitmap, {
+      resizeWidth: Math.max(1, Math.round(bitmap.width * k)),
+      resizeHeight: Math.max(1, Math.round(bitmap.height * k)),
+      resizeQuality: "high",
+    });
+  } finally {
+    bitmap.close();
+  }
 }
 
 export class PicturePool {

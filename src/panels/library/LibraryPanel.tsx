@@ -3,15 +3,16 @@
  * Clicar na aba ativa recolhe o painel; clicar em qualquer aba com o painel
  * recolhido abre de novo.
  */
-import { AudioLines, Blend, Film, Import, Sparkles, Type, type LucideIcon } from "lucide-react";
+import { AudioLines, Blend, Film, Import, Shapes, Sparkles, Type, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tip } from "@/components/ui/tooltip";
 import { pickAndImport } from "@/app/importMedia";
 import { isTauri } from "@/lib/ipc";
 import { cn } from "@/lib/cn";
 import { MediaLibrary } from "./MediaLibrary";
+import { ShapeLibrary } from "./ShapeLibrary";
 
-export type LibraryTab = "media" | "audio" | "text" | "transitions" | "effects";
+export type LibraryTab = "media" | "audio" | "text" | "shapes" | "transitions" | "effects";
 
 interface TabInfo {
   id: LibraryTab;
@@ -24,6 +25,7 @@ export const LIBRARY_TABS: TabInfo[] = [
   { id: "media", label: "Mídia", icon: Film, empty: "Arraste vídeos, áudios e imagens aqui ou clique em Importar." },
   { id: "audio", label: "Áudio", icon: AudioLines, empty: "Músicas e efeitos sonoros importados aparecem aqui." },
   { id: "text", label: "Texto", icon: Type, empty: "Arraste um modelo de título para a timeline." },
+  { id: "shapes", label: "Formas", icon: Shapes, empty: "" },
   { id: "transitions", label: "Transições", icon: Blend, empty: "Arraste uma transição para o corte entre dois clipes." },
   { id: "effects", label: "Efeitos", icon: Sparkles, empty: "Arraste um efeito para um clipe da timeline." },
 ];
@@ -78,7 +80,7 @@ export function LibraryPanel({ tab }: { tab: LibraryTab }) {
           </Tip>
         )}
       </header>
-      {tab === "media" ? <MediaLibrary /> : <EmptyState icon={info.icon} text={info.empty} />}
+      {tab === "media" ? <MediaLibrary /> : tab === "shapes" ? <ShapeLibrary /> : <EmptyState icon={info.icon} text={info.empty} />}
     </section>
   );
 }

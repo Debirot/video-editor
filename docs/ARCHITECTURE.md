@@ -148,6 +148,17 @@ Playback: relógio → frameStart(t) → videoLayersAt (evaluate.ts) → Picture
   (no tamanho do palco em px CSS) para a moldura cair sobre a imagem. Arrastos usam transação
   como os gestos da timeline.
 
+### Imagens e formas (T2.03)
+- `src/engine/shapes.ts`: forma → OffscreenCanvas 2D no tamanho em que aparece (escala × saída,
+  até 4096 px), num cache de 16 desenhos. `drawLayers` desenha a camada de forma com `placeLayer`
+  em modo de tamanho próprio; o pool de imagens não participa.
+- Compositor: imagens fixas e formas (ImageBitmap, OffscreenCanvas) viram textura uma vez e são
+  reaproveitadas (até 8); quadros de vídeo continuam indo direto para a textura comum.
+- `src/engine/decode/pool.ts`: imagem lida por faixas até o fim (o media:// corta respostas em
+  2 MB), decodificada já girada pelo EXIF e reduzida a 4096 px no maior lado.
+- `src-tauri/src/exif.rs`: giro EXIF de JPEG/TIFF lido do cabeçalho na importação, quando o ffprobe
+  não informa; vai para `probe.rotation` (alças e pôster).
+
 ### Áudio (T1.08)
 ```
 src/app/audio.ts (thread da interface, Web Audio)       audioWorker.ts (Worker só de áudio)

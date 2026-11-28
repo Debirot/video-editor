@@ -29,8 +29,12 @@ export interface Placement {
 
 const MIN_VISIBLE = 0.01;
 
+/**
+ * `src.natural`: a fonte tem tamanho próprio em px do projeto (formas, textos) e escala 1
+ * é esse tamanho; sem ele, escala 1 = a imagem inteira cabendo na saída (contain).
+ */
 export function placeLayer(
-  src: Size & { rotation?: number },
+  src: Size & { rotation?: number; natural?: boolean },
   out: Size,
   project: Size,
   t: Transform,
@@ -40,8 +44,8 @@ export function placeLayer(
   const swap = fileRotation % 180 !== 0;
   const shownW = swap ? src.height : src.width;
   const shownH = swap ? src.width : src.height;
-  const fit = Math.min(out.width / shownW, out.height / shownH) * t.scale;
   const k = out.width / project.width;
+  const fit = (src.natural ? k : Math.min(out.width / shownW, out.height / shownH)) * t.scale;
   const u0 = Math.max(0, crop.left);
   const v0 = Math.max(0, crop.top);
   let u1 = Math.min(1, 1 - crop.right);

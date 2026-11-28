@@ -247,12 +247,33 @@ Pronto quando:
 - [ ] No Windows: PiP, alças, vídeo de celular em pé e exportação
 Fora do escopo: keyframes (T2.07), ponto de âncora editável, espelhar, modos de mesclagem.
 
-### T2.03 Imagens e logotipos, depois formas · próxima
-Imagens com transparência na timeline com duração padrão e transformação; depois formas (retângulo,
-elipse) com cor e borda.
+### T2.03 Imagens e formas · concluída
+Objetivo: fotos grandes e fotos de celular (giro no EXIF) funcionando como camadas; formas (retângulo,
+elipse, linha) com cor, contorno e cantos, no preview e na exportação.
+Arquivos: src/project/{types,normalize}.ts, src/project/commands/shapes.ts (novo), src/engine/shapes.ts
+(novo), src/engine/{evaluate,compose,transform}.ts, src/engine/compositor/compositor.ts,
+src/engine/decode/pool.ts, src/components/ui/color-field.tsx (novo),
+src/panels/library/{LibraryPanel,ShapeLibrary}.tsx, src/panels/inspector/ClipInspector.tsx,
+src/panels/preview/TransformHandles.tsx, src/timeline/draw.ts, src-tauri/src/exif.rs (novo),
+src-tauri/src/{ffmpeg,commands,main}.rs
+Pronto quando:
+- [x] addShapeClip/setClipShape testados: trilha mais alta livre ou nova acima (nunca sobrescreve),
+      limites de tamanho, espessura e cantos, cores inválidas ignoradas, troca de tipo, trilha travada
+- [x] normalize completa o estilo da forma; evaluate gera camada de forma; placeLayer com tamanho próprio;
+      tamanho do desenho segue a escala e o limite de 4096 px
+- [x] exif.rs testado: orientações nos dois endiannesses, TIFF, dados cortados sem pânico, leitura do arquivo;
+      pôster de foto girada sai em pé; pôster de JPEG volta a sair (sem `-ss 0`)
+- [x] No navegador: foto com EXIF 6 em pé e moldura 3:4; foto de 48 MP (46 MB, servida em pedaços de 2 MB)
+      aparece sem erro; retângulo com cantos e contorno, elipse sem preenchimento, linha arrastada pela alça;
+      Ctrl+Z desfaz; quadro exportado igual ao preview
+- [ ] No Windows: foto do celular, formas, seletor de cor do sistema (um passo de desfazer por escolha)
+Fora do escopo: polígonos e setas, gradientes, sombra; arrastar forma da biblioteca para a timeline.
+
+### T2.04 Textos e títulos · próxima
+Clipe de texto com fontes do sistema, tamanho, cor, alinhamento, contorno, sombra e fundo; edição no
+inspetor e alças no preview (o texto usa o mesmo tamanho próprio das formas).
 
 ### Demais tarefas da Fase 2
-4. Textos e títulos, com fontes do sistema.
 5. Ajustes de cor, desfoque e nitidez.
 6. Transições: dissolve, fade para preto, deslizar, zoom.
 7. Keyframes: motor de interpolação primeiro (com testes), depois a interface no inspetor.

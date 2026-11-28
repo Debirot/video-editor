@@ -3,6 +3,7 @@
 
 mod cache;
 mod commands;
+mod exif;
 mod ffmpeg;
 mod jobs;
 mod media;

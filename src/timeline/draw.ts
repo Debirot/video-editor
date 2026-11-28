@@ -6,6 +6,7 @@
 import type { Rational, Us } from "@/lib/time";
 import type { Overlay } from "./gestures";
 import type { Clip, Media, Track } from "@/project/types";
+import { SHAPE_NAMES } from "@/project/commands/shapes";
 import { RULER_HEIGHT, SEPARATOR_HEIGHT, rulerTicks, timeToX, type TrackLayout, type Viewport } from "./viewport";
 
 export interface Palette {
@@ -79,7 +80,7 @@ function fileName(path: string): string {
 
 function clipLabel(clip: Clip, media: Media | undefined): string {
   if (clip.kind === "text") return clip.text?.content ?? "Texto";
-  if (clip.kind === "shape") return "Forma";
+  if (clip.kind === "shape") return SHAPE_NAMES[clip.shape?.type ?? "rect"];
   if (!media) return "Mídia ausente";
   return media.missing ? `Ausente: ${fileName(media.path)}` : fileName(media.path);
 }

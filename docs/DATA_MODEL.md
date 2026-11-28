@@ -44,6 +44,11 @@ Detalhes que importam:
   tela (0,01 a 10); `rotation` em graus, sentido horário (±3600); `opacity` 0 a 1.
   `crop`: fração escondida de cada lado (0 a 0,99), sem mover o resto. A rotação gravada no arquivo
   (`probe.rotation`, vídeos de celular) é aplicada antes e não aparece em `transform` (D-019).
+  Em imagens, `probe.rotation` vem do EXIF (fotos de celular).
+- Forma (`kind: "shape"`, sem `mediaId`): `shape = { type: "rect" | "ellipse" | "line", width, height,
+  fill, stroke, strokeWidth, radius }`. Tamanhos em px do projeto, e escala 1 do clipe = esse tamanho
+  (não há encaixe). Cores `#rrggbb`; `fill: "none"` = sem preenchimento; o contorno fica por dentro.
+  A linha é horizontal: `width` de comprimento, `strokeWidth` de espessura, cor `stroke`.
 
 ## Ids
 

@@ -1,5 +1,5 @@
 /**
- * Alças de transformação sobre o preview, para o clipe de vídeo selecionado que aparece
+ * Alças de transformação sobre o preview, para o clipe selecionado (vídeo, imagem ou forma) que aparece
  * no playhead: arrastar dentro move (encaixa no centro), cantos mudam a escala, a alça
  * de cima gira (Shift = passos de 15°). Clicar numa camada a seleciona.
  * Cada arrasto é uma transação (um passo de desfazer); Esc cancela.
@@ -15,6 +15,7 @@ import { clipAt } from "@/project/queries";
 import { setClipTransform } from "@/project/commands/clipProps";
 import type { Clip, Project, Track } from "@/project/types";
 import { containsPoint, placeLayer, visibleCorners, type Placement, type Size } from "@/engine/transform";
+import { shapeSize } from "@/engine/shapes";
 
 const HANDLE = 9;
 const ROTATE_OFFSET = 26;
@@ -32,9 +33,15 @@ function layersAt(project: Project, t: number, stage: Size): Layer[] {
   for (const track of project.tracks) {
     if (track.kind !== "video" || track.hidden) continue;
     const clip = clipAt(track, t);
-    const media = clip?.mediaId ? project.media.find((m) => m.id === clip.mediaId) : undefined;
-    if (!clip || !media || media.kind === "audio" || !media.probe.width || !media.probe.height) continue;
-    const src = { width: media.probe.width, height: media.probe.height, rotation: media.kind === "video" ? media.probe.rotation : 0 };
+    if (!clip || !clip.enabled) continue;
+    if (clip.kind === "shape") {
+      if (clip.shape) out.push({ clip, track, placement: placeLayer(shapeSize(clip.shape), stage, project.settings, clip.transform, clip.crop) });
+      continue;
+    }
+    const media = clip.mediaId ? project.media.find((m) => m.id === clip.mediaId) : undefined;
+    if (!media || media.missing || media.kind === "audio" || !media.probe.width || !media.probe.height) continue;
+    // Vídeo de celular (matriz) e foto de celular (EXIF): o giro do arquivo vem do probe.
+    const src = { width: media.probe.width, height: media.probe.height, rotation: media.probe.rotation ?? 0 };
     out.push({ clip, track, placement: placeLayer(src, stage, project.settings, clip.transform, clip.crop) });
   }
   return out.reverse();

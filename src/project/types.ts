@@ -134,11 +134,22 @@ export interface TextStyle {
   background?: { color: string; padding: number; radius: number };
 }
 
+export type ShapeType = "rect" | "ellipse" | "line";
+
+/**
+ * Forma desenhada pelo compositor. Tamanhos em px do projeto (escala 1 do clipe = este
+ * tamanho). Cores "#rrggbb"; `fill` "none" = sem preenchimento. O contorno fica por dentro
+ * do tamanho. A linha é horizontal, com `width` de comprimento e `strokeWidth` de
+ * espessura, na cor `stroke` (`height`, `fill` e `radius` não se aplicam a ela).
+ */
 export interface ShapeStyle {
-  type: "rect" | "ellipse" | "line";
+  type: ShapeType;
+  width: number;
+  height: number;
   fill: string;
   stroke: string;
   strokeWidth: number;
+  /** Raio dos cantos do retângulo. */
   radius: number;
 }
 

@@ -10,6 +10,15 @@ const r = (n: number) => Math.round(n) + 0; // + 0 transforma −0 em 0
 const round = (pts: [number, number][]) => pts.map(([x, y]) => [r(x), r(y)]);
 
 describe("placeLayer", () => {
+  it("tamanho próprio (formas): escala 1 = tamanho em px do projeto, sem encaixe", () => {
+    const shape = { width: 400, height: 200, natural: true };
+    const p = placeLayer(shape, out, project, T({ x: 100 }), C());
+    expect(round(visibleCorners(p))).toEqual([[860, 440], [1260, 440], [1260, 640], [860, 640]]);
+    // preview em 1/2 e escala 2: mesmo lugar relativo, o dobro do tamanho
+    const half = placeLayer(shape, { width: 960, height: 540 }, project, T({ x: 100, scale: 2 }), C());
+    expect([r(half.cx), r(half.cy), r(half.w), r(half.h)]).toEqual([530, 270, 400, 200]);
+  });
+
   it("sem transformação = encaixe centralizado (vertical com faixas)", () => {
     const p = placeLayer({ width: 1080, height: 1920 }, out, project, T(), C());
     expect([p.cx, p.cy, Math.round(p.w), p.h]).toEqual([960, 540, 608, 1080]);

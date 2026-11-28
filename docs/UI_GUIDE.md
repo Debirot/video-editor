@@ -102,6 +102,14 @@ Componentes de painel só montam peças daqui. Se falta uma peça, ela é criada
 - **Seções Transformação e Recorte** (vídeo e imagem): Posição X/Y em px, Escala e Opacidade em %,
   Rotação em °; "Redefinir" aparece quando algo mudou. Recorte (esquerda, direita, cima, baixo em %)
   abre sozinho quando há recorte.
+- **Biblioteca Formas** (aba com ícone de formas): três cartões (Retângulo, Elipse, Linha); clicar põe
+  a forma no playhead, na trilha de vídeo mais alta livre (ou numa nova), e a seleciona.
+- **Seção Forma**: Tipo (três botões de ícone; o ativo em `accent`), Largura/Altura (na linha,
+  Comprimento), Cantos (retângulo), Preenchimento (com "sem cor"), Contorno (na linha, Cor) e
+  Espessura ("sem contorno" em 0). Formas não têm a seção Recorte.
+- **Campo de cor** (`src/components/ui/color-field.tsx`): rótulo de 96 px, amostra de 28 px que abre o
+  seletor do sistema, código `#RRGGBB` editável (Enter/Esc) e, quando cabe, botão "sem cor".
+  Uma escolha no seletor é um passo de desfazer.
 - **Alças no preview** (`TransformHandles`): só com o clipe selecionado, parado e em trilha
   destravada. Moldura e alças em `accent` com fundo `bg-1`; arrastar dentro move (encaixa no centro
   a 6 px; Shift trava o eixo), cantos mudam a escala, o círculo acima gira (Shift = 15°). Clicar

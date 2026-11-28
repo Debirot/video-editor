@@ -14,6 +14,8 @@ import {
   type Media,
   type Project,
   type ProjectSettings,
+  type ShapeStyle,
+  type ShapeType,
   type Track,
   type TrackKind,
   type Transform,
@@ -42,6 +44,13 @@ export const DEFAULT_COLOR: ColorAdjust = {
   contrast: 0,
   saturation: 0,
   temperature: 0,
+};
+
+/** Formas novas: centradas, num tamanho que se vê bem num projeto 1080p. */
+export const DEFAULT_SHAPES: Record<ShapeType, ShapeStyle> = {
+  rect: { type: "rect", width: 640, height: 360, fill: "#ffffff", stroke: "#000000", strokeWidth: 0, radius: 0 },
+  ellipse: { type: "ellipse", width: 400, height: 400, fill: "#ffffff", stroke: "#000000", strokeWidth: 0, radius: 0 },
+  line: { type: "line", width: 800, height: 8, fill: "none", stroke: "#ffffff", strokeWidth: 8, radius: 0 },
 };
 
 export function createTrack(kind: TrackKind, name: string): Track {
@@ -106,6 +115,11 @@ function normalizeClip(raw: unknown): Clip {
   clip.color = { ...DEFAULT_COLOR, ...(isObject(raw.color) ? raw.color : {}) };
   clip.effects = arr(raw.effects) as Clip["effects"];
   clip.keyframes = isObject(raw.keyframes) ? (raw.keyframes as Clip["keyframes"]) : {};
+  if (clip.kind === "shape") {
+    const shape = isObject(raw.shape) ? raw.shape : {};
+    const type = shape.type === "ellipse" || shape.type === "line" ? shape.type : "rect";
+    clip.shape = { ...DEFAULT_SHAPES[type], ...shape, type };
+  }
   return clip;
 }
 

@@ -120,3 +120,9 @@ As decisões de stack do plano técnico (seção 2) valem como D-001 a D-006.
 - Descartadas: escala em px absolutos (mudaria ao trocar a resolução do projeto); girar o arquivo na importação (modificaria o original ou exigiria cópia); desenhar as alças no WebGL (o Worker não recebe eventos de ponteiro).
 - Consequências: mudar a resolução do projeto mantém o enquadramento relativo; keyframes (T2.07) vão interpolar esses mesmos campos.
 
+### D-020 · 2026-11-28 · Formas e imagens fixas
+- Contexto: a T2.03 traz formas desenhadas e precisa de fotos de celular (48 MP, giro no EXIF) funcionando como camadas.
+- Decisão: formas desenhadas em Canvas 2D (OffscreenCanvas no Worker) no tamanho em que vão aparecer e enviadas ao compositor como textura; a forma tem tamanho próprio em px do projeto (escala 1 = esse tamanho, `placeLayer` com `natural`), e o contorno fica por dentro. O compositor guarda a textura de imagens fixas e formas (até 8) em vez de reenviá-las a cada quadro. Imagens são lidas inteiras por faixas (o media:// corta em 2 MB) e reduzidas a no máximo 4096 px no maior lado. O giro EXIF é lido em Rust (exif.rs, só o cabeçalho, sem dependência nova) quando o ffprobe não informa; o pôster de foto girada é feito com `-noautorotate` e giro explícito, para sair igual em qualquer versão do FFmpeg.
+- Descartadas: shader de forma (SDF) no compositor (mexe nos shaders estáveis e não serve para textos, que vêm em seguida pelo mesmo caminho do Canvas 2D); crate de EXIF (dependência para ler um campo); aumentar o limite de resposta do protocol.rs (módulo estável).
+- Consequências: bordas giradas não têm antisserrilhado (como vídeo girado); trocar escala por arrasto refaz o desenho da forma, barato no Canvas 2D. Textos (T2.04) usam o mesmo caminho: desenho no Worker com tamanho próprio.
+

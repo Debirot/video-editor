@@ -58,6 +58,27 @@ export function fitContain(w: number, h: number, W: number, H: number): Rect {
   return { x: (W - rw) / 2, y: (H - rh) / 2, w: rw, h: rh };
 }
 
+/** Texturas guardadas de imagens fixas e formas (as menos usadas são apagadas). */
+const STATIC_TEXTURES = 8;
+
+function createTexture(gl: WebGL2RenderingContext): WebGLTexture {
+  const texture = gl.createTexture()!;
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return texture;
+}
+
+/** ImageBitmap e OffscreenCanvas de forma não mudam depois de criados: a textura pode ser reaproveitada. */
+function isStatic(frame: TexImageSource): frame is ImageBitmap | OffscreenCanvas {
+  return (
+    (typeof ImageBitmap !== "undefined" && frame instanceof ImageBitmap) ||
+    (typeof OffscreenCanvas !== "undefined" && frame instanceof OffscreenCanvas)
+  );
+}
+
 export class Compositor {
   readonly gl: WebGL2RenderingContext;
   private readonly program: WebGLProgram;
@@ -67,6 +88,7 @@ export class Compositor {
   private readonly uUv: WebGLUniformLocation;
   private readonly uViewport: WebGLUniformLocation;
   private readonly uOpacity: WebGLUniformLocation;
+  private readonly statics = new Map<ImageBitmap | OffscreenCanvas, WebGLTexture>();
 
   constructor(
     readonly canvas: OffscreenCanvas,
@@ -99,12 +121,7 @@ export class Compositor {
     gl.enableVertexAttribArray(aPos);
     gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
 
-    this.texture = gl.createTexture()!;
-    gl.bindTexture(gl.TEXTURE_2D, this.texture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    this.texture = createTexture(gl);
   }
 
   get width(): number {
@@ -139,17 +156,44 @@ export class Compositor {
   }
 
   /**
-   * Envia a imagem direto como textura (um VideoFrame não passa por bitmap na CPU) e
-   * desenha conforme `p` (transform.ts). `blend` liga a mistura alfa (PNG com
-   * transparência, opacidade < 1).
+   * Põe a imagem na unidade de textura 0. Quadros de vídeo vão direto para a textura
+   * comum (um VideoFrame não passa por bitmap na CPU); imagens fixas e formas são
+   * enviadas uma vez e a textura é reaproveitada nos quadros seguintes.
+   */
+  private bindImage(frame: TexImageSource): void {
+    const gl = this.gl;
+    gl.activeTexture(gl.TEXTURE0);
+    if (!isStatic(frame)) {
+      gl.bindTexture(gl.TEXTURE_2D, this.texture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
+      return;
+    }
+    const cached = this.statics.get(frame);
+    if (cached) {
+      this.statics.delete(frame);
+      this.statics.set(frame, cached);
+      gl.bindTexture(gl.TEXTURE_2D, cached);
+      return;
+    }
+    const texture = createTexture(gl);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
+    this.statics.set(frame, texture);
+    if (this.statics.size > STATIC_TEXTURES) {
+      const [oldest, tex] = this.statics.entries().next().value!;
+      this.statics.delete(oldest);
+      gl.deleteTexture(tex);
+    }
+  }
+
+  /**
+   * Desenha a imagem conforme `p` (transform.ts). `blend` liga a mistura alfa (PNG com
+   * transparência, formas, opacidade < 1).
    */
   drawPlaced(frame: TexImageSource, p: Placement, opacity = 1, blend = opacity < 1): void {
     const gl = this.gl;
     gl.useProgram(this.program);
     gl.bindVertexArray(this.vao);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
+    this.bindImage(frame);
     gl.uniformMatrix3fv(this.uMatrix, false, placementMatrix(p));
     gl.uniform4f(this.uUv, p.uv[0], p.uv[1], p.uv[2], p.uv[3]);
     gl.uniform2f(this.uViewport, this.width, this.height);
@@ -173,6 +217,8 @@ export class Compositor {
   dispose(): void {
     const gl = this.gl;
     gl.deleteTexture(this.texture);
+    for (const texture of this.statics.values()) gl.deleteTexture(texture);
+    this.statics.clear();
     gl.deleteProgram(this.program);
     gl.deleteVertexArray(this.vao);
   }
